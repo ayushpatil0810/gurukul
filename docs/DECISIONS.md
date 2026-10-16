@@ -35,3 +35,9 @@ There is no object store in this phase. `tests.input` and `tests.expected_output
 ## 2026-10-16 — Institute policy defaults
 
 Open questions in the PRD do not fix retention or the default threshold. Seeded policy uses 180 days and a mastery threshold of 0.80, matching the module default in CM-3.
+
+## 2026-10-16 — Hardened Docker while gVisor is absent
+
+`docker info` on this machine lists runc, not `runsc`. The sandbox keeps the `SandboxRunner` interface and uses hardened runc: no network, a read-only root, a scratch tmpfs, a non-root user, dropped capabilities, a pid cap, memory and CPU limits, a wall-clock kill, and an output cap. The seccomp file is Docker's default allow-list from Moby 27.5.1 with `bind`, `connect`, `listen`, `accept`, and `accept4` removed so a program cannot open a socket connection. If `runsc` shows up in `docker info`, the runner adds `--runtime runsc`.
+
+Student source is written to the scratch tmpfs from stdin. A read-only root cannot accept `docker cp` before start, and a tmpfs mounted at start would hide a file copied earlier. Expected output is compared on the host and is never placed in the container environment. The student CPU limit is applied with `ulimit` after compilation so the compiler can finish; the container wall clock still bounds both.
