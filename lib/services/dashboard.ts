@@ -34,6 +34,7 @@ import {
 } from "@/lib/engine/dashboard-bands";
 import { AppError } from "@/lib/errors";
 import { previewRoute } from "@/lib/services/assessment";
+import { publishedLessonForConcept } from "@/lib/services/lessons";
 import { listReviewQueue } from "@/lib/services/integrity";
 import { readStudentForActor } from "@/lib/services/students";
 
@@ -68,6 +69,7 @@ export type RecommendationView = {
   storedMastery: number | null;
   predictedSuccess: number | null;
   hasQuestion: boolean;
+  lesson: { id: string; title: string } | null;
   alternatives: { name: string; note: string; storedMastery: number | null }[];
 };
 
@@ -316,6 +318,7 @@ async function recommendationFor(
         : [];
     const recorded = new Map(masteryRows.map((row) => [row.conceptId, row.pKnow]));
     const chosen = stored.get(preview.decision.conceptId);
+    const lesson = await publishedLessonForConcept(instituteId, preview.decision.conceptId);
     return {
       conceptId: preview.decision.conceptId,
       conceptName: chosen?.name ?? preview.decision.conceptId,
@@ -323,6 +326,7 @@ async function recommendationFor(
       storedMastery: recorded.has(preview.decision.conceptId) ? (recorded.get(preview.decision.conceptId) ?? null) : null,
       predictedSuccess: preview.decision.predictedSuccess,
       hasQuestion: preview.decision.questionId !== null,
+      lesson,
       alternatives: preview.decision.alternatives.map((alternative) => ({
         name: alternative.name,
         note: alternative.note,

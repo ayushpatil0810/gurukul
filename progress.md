@@ -1,6 +1,6 @@
 # Progress
 
-Adaptive Learning and Assessment Portal for TechSummitTrainers. The working PRD is `prd.md`. The app is the existing Next.js project. Phase 0, Phase 1, the Phase 2 telemetry, replay, integrity review, and explain-your-code steps, and the Phase 3 student and trainer dashboards are done.
+Adaptive Learning and Assessment Portal for TechSummitTrainers. The working PRD is `prd.md`. The app is the existing Next.js project. Phase 0 through the Phase 3 dashboards are done, and the Phase 4 lesson studio is in place.
 
 ## How to run
 
@@ -176,13 +176,143 @@ Not exercised in the browser: an admin account, an empty batch, Cara’s own das
 
 Ada’s Functions value is 0.19 because the earlier graded factorial submit failed the hidden test. The dashboard did not change it. Reseed if you want the demo mastery back at 0.30.
 
+## Phase 4 — Lesson studio
+
+Implemented and checked against `docs/PHASE4_LESSON_STUDIO.md`.
+
+`/studio` lets a trainer or admin generate an OpenMAIC outline for an existing concept, edit it, generate validated slide and quiz scenes, save a draft, and publish. Students see a published lesson on the recommended concept at `/learn/:id`. Drafts are not found for students. Generation, saving, publishing, and reading do not change `mastery_state.p_know`.
+
+The model call is `@openmaic/generation` 0.3.18 with `AICallFn`. Scenes are checked with `@openmaic/dsl` `validateScene` before they are stored. `@openmaic/renderer` and `@openmaic/editor` are not embedded. There is no new provider SDK. `OPENAI_API_KEY` is optional; without it the rest of the portal still runs.
+
+Checked in this pass:
+
+- `bun run db:migrate` applied `drizzle/0005_luxuriant_lady_vermin.sql`. `bun run db:seed` was not run.
+- `bun run test` passed 37 files and 139 tests. The new files are `tests/lesson-generation.test.ts` and `tests/integration/lesson-access.test.ts`. The integration test uses the real OpenMAIC outline and scene functions with a stand-in model response. It covers a trainer outline, content generation, rejected model output, a thrown provider error that inserts nothing, draft hiding, student visibility after publish, a trainer with no batch, another institute, a missing concept, and unchanged mastery (`0.42` before and after).
+- `bun run lint` passed after a form stopped assigning a variable named `module`.
+- `bun run typecheck` passed.
+- `bun run build` passed on Next.js 16.4.2. New routes include `/studio`, `/studio/new`, `/studio/[id]`, `/learn/[id]`, and `/api/lessons`.
+
+`OPENAI_API_KEY` is not set in this environment, so a live model call was not made. After the full suite, the missing-key message was made explicit and `tests/lesson-generation.test.ts` plus `tests/integration/lesson-access.test.ts` were run again: 2 files, 2 tests, passed.
+
+Browser, on the dev server at port 3000:
+
+- Signed in as Ada, `/studio` said she does not have access.
+- Signed in as `trainer@techsummit.example`. `/studio` showed the missing-key notice and “No lessons yet.” Lesson studio is in the trainer nav.
+- `/studio/new` listed TypeScript OOP and its concepts. Generate outline, with no key, returned “Lesson generation needs OPENAI_API_KEY. Nothing was saved.” The studio list stayed empty.
+
+Not exercised in the browser during implementation: a successful outline or publish, because no model key was configured.
+
+## Phase 4.1 — Live generation check
+
+The earlier pass stopped because the server had no `OPENAI_API_KEY`. This pass used a locally configured key. The server detected it. The value was not printed or committed. `OPENAI_BASE_URL` stays at the default `https://api.openai.com/v1`. The local model override is `gpt-5.4-mini`; the code default is still `gpt-4o-mini`. A one-token completion returned HTTP 200 with string content, so the request body was not changed.
+
+Live provider, signed in as `trainer@techsummit.example`:
+
+- Outline generation for “What a function returns in TypeScript”, beginner, 15 minutes, on Functions, returned 8 slide and quiz scenes. The lesson is “TypeScript Return Values”.
+- The model’s quiz outline used `short_answer`. The outline schema expects `text`. Outlines are now normalized and schema-checked before insert, and the editor keeps `quizConfig` on save.
+- The first content request failed closed and left the draft empty. The retry stored 8 scenes, and each one passed `validateScene`. Preview shows text. Model output is not executed.
+- The edited title and summary survived refresh as a draft. Publish returned 200, stayed Published after refresh, and a second publish returned 200 with the same 8 scenes.
+
+Student, signed in as Ada:
+
+- The draft was “Lesson not found.” After publish, the dashboard links “Read the published lesson: TypeScript Return Values” on the Functions recommendation. The student page has no answer key. Ada has no Lesson studio link.
+- A missing lesson id is still “Lesson not found.” Practice still opens the Functions question. Nothing was submitted.
+- The dashboard does not offer a lesson for an unrelated concept. A direct URL can still open any published lesson in the same institute, which is the existing reader rule.
+
+Mastery before and after generation, both publishes, and the student read: Variables `0.9`, Functions `0.19322033898305085`, 2 mastery updates, 8 attempts, 6 signals. No new graded attempt or integrity signal came from reading.
+
+Checked on the final tree:
+
+- `bun run test` passed 37 files and 140 tests. The extra test is the `short_answer` outline mapping. The 139-test baseline did not include it.
+- `bun run lint` passed with no warnings.
+- `bun run typecheck` passed.
+- `bun run build` passed on Next.js 16.4.2.
+- `bun run db:seed` was not run.
+
+`tests/integration/lesson-access.test.ts` remains a stand-in model test, including fixture mastery held at `0.42`. It is separate from the live `gpt-5.4-mini` calls above.
+
+Scene 3 of the live lesson uses Chinese labels, and one code sample is `int add` rather than TypeScript. That passed DSL validation and is a model-quality issue. A failed provider HTTP status is still shown as a generic message. The packages stay MIT (THU-MAIC); the reference repo was not copied. No commit was made.
+
+## Phase 4.2 — Lesson player, language checks, and provider errors
+
+The audit of the pre-change studio is `docs/PHASE4_2_AUDIT.md`. The result is `docs/PHASE4_2_LESSON_QUALITY.md`.
+
+The student page and the trainer preview now share one player. Slide and quiz scenes get a presentation role: introduction, explanation, code walkthrough, comparison, steps, summary, or knowledge check. The outline, previous and next controls, and “Viewed n of m” count scenes opened in the browser. That count is not stored and is not mastery. Monaco shows code read-only. Model HTML is still stripped to text.
+
+New lessons store `explanation=en;code=<language>` in the existing `language_directive` column. English is the only explanation language. TypeScript and JavaScript examples are syntax-checked with the TypeScript parser and are not executed. Java and C++ can be selected and stay unverified. Publish is blocked on a language or syntax error. A failing scene is regenerated once; if it is still invalid, the saved draft is left unchanged. One scene can be regenerated without rewriting the others.
+
+Provider failures now return a fixed category: missing key, invalid credentials, rate limit, quota, timeout, network, other provider error, invalid output, or empty output. The key, headers, and response body are not returned.
+
+A student can open a published lesson only when its concept is the selector’s current concept. The Phase 4.1 note that a direct URL could open any published lesson in the institute describes the earlier reader. `previewRoute` still does not write a routing decision.
+
+Live checks, separate from the stand-in integration test:
+
+- “TypeScript Return Values” stayed published. Ada used the player, including a knowledge check with no answer key, at desktop width and at 390px. The trainer editor lists the Chinese labels as blocking and leaves Publish disabled. The row was not unpublished or regenerated.
+- “How async and await work in JavaScript” saved the draft “Async and Await Basics” (`83394199-a40e-4e10-a273-186dddb3eee0`) with JavaScript selected. The outline succeeded. Two content requests failed closed and stored no scenes. The draft was not published.
+
+Ada’s mastery after the player read and those generation attempts: Variables `0.9`, Functions `0.19322033898305085`, 2 mastery updates, 8 attempts, 6 signals.
+
+Checked on the final tree:
+
+- `bun run test` passed 39 files and 153 tests.
+- `bun run lint` passed with no warnings.
+- `bun run typecheck` passed.
+- `bun run build` passed on Next.js 16.4.2.
+- No migration was generated. `bun run db:seed` was not run. No commit was made.
+
+## Phase 4.3 — Lesson repair, end-to-end reliability & demo readiness
+
+Implemented and checked against `docs/PHASE4_3_LESSON_RELIABILITY.md`.
+
+Repairs and improvements:
+- “TypeScript Return Values” (`e9434b61-2069-43ff-a805-66ca98f78f27`) was safely repaired via targeted phrase replacement: Scene 3 Chinese labels replaced with English, closing brace restored; Scene 6 `int add` replaced with TypeScript. Validated with 0 blocking errors and confirmed published.
+- “Async and Await Basics” (`83394199-a40e-4e10-a273-186dddb3eee0`) JavaScript generation was resolved by forbidding TypeScript type annotations in the JavaScript prompt directive and passing the target language into `repairInstruction`. All 7 scenes generated, validated, and saved. Scene 6 was edited to test trainer persistence, verified persisted, and published.
+- Student player (`LessonView`) received an accessible loading fallback for dynamic Monaco editor imports.
+- Both lessons verified end-to-end: trainer preview shows answer keys; authorized student (Ada) sees lessons without answer keys; unauthorized students (Ben, Cara) receive 404 on concept mismatch.
+- State isolation verified: reading lessons and viewing knowledge checks does not alter `mastery_state`, `mastery_updates`, `attempts`, or `signals`.
+
+Checked on the final tree:
+- `bun run test` passed 39 files and 161 tests.
+- `bun run lint` passed with 0 errors and 0 warnings.
+- `bun run typecheck` passed with 0 errors.
+- `bun run build` passed on Next.js 16.4.2 (29 routes generated).
+- No migration was generated. No commit was made.
+
+## Phase 5 — Interactive Classroom Engine
+
+Implemented and documented in `docs/PHASE5_INTERACTIVE_CLASSROOM.md`.
+
+Engine, visual components & simulations:
+- Transformed the lesson player into an interactive classroom engine based on: Explain visually → Let student interact → Ask student to reason → Give feedback → Continue teaching.
+- Extended scene rendering pipeline to support all 9 scene types: `intro`, `explanation`, `diagram`, `code_walkthrough`, `comparison`, `step_by_step`, `interactive_lab`, `knowledge_check`, and `summary`.
+- Built reusable interactive visual components:
+  - `ArchitectureDiagram`: Responsive SVG node graph with directional animated edges, category badges, and node details inspector.
+  - `StepByStepViewer`: Controlled sequence with progress track, auto-play timer, step controls, callouts, and component highlights.
+  - `CodeWalkthrough`: Stepped syntax-highlighted code with line-range focus highlighting and line-level annotations.
+  - `KubernetesLab`: Flagship deterministic Kubernetes cluster simulation with replica slider (1 to 6), pod inspection, rolling updates, readiness probe failure scenario (HTTP 500, pod detachment, degraded status), event stream, and self-healing corrective action.
+  - `DockerLab`: File tree, multi-stage image build, container lifecycle, and verified health check endpoint probe.
+  - `CicdLab`: 6-stage pipeline with automated test gating and downstream deployment blocking.
+  - `InteractiveKnowledgeCheck`: Ungraded checkpoint with confidential answer keys, instant green/red affirmation, and retry logic.
+  - `AiMentor`: Server route (`POST /api/lessons/[id]/mentor`) and drawer component (`AiMentor`) providing contextual hints, simplified analogies, and log explanations with deterministic offline fallbacks.
+- Studio integration: Scene-type badges, unified student preview with `showAnswers`, and graceful fallbacks for unsupported types.
+- Flagship Lesson: “DevOps Engineering: From Code to Production” (`4a3a34a7-7596-4d6e-b22e-a909d7f6d7da`) on concept **Functions** with 10 interactive scenes, fully validated with `@openmaic/dsl` and `inspectLesson`.
+- Preserved existing published lessons (`TypeScript Return Values`, `TypeScript Generators`, `Async and Await Basics`).
+- State isolation verified: viewing lessons and simulations does not alter `mastery_state`, `mastery_updates`, `attempts`, or `signals`.
+
+Checked on the final tree:
+- `bun run test` passed 40 files and 174 tests (100% pass rate).
+- `bun run lint` passed with 0 errors and 0 warnings.
+- `bun run typecheck` passed with 0 errors (`tsc --noEmit`).
+- `bun run build` passed on Next.js 16.4.2 (all 29 routes generated).
+- Zero database migrations required (used existing JSONB columns). No Git commit was made.
+
 ## Not started
 
 Per-batch threshold tuning and student-visible signals stay P1. Periodic snapshots and trainer notes from the PRD are not built. A keepalive batch that never reached the server still cannot be replayed.
 
-Still out of this milestone: mastery trend charts (SD-4, P1), CSV export (TD-5, P1), module and date filters (TD-6, P1), and the institute summary (AD-1 and AD-2, P2). Explanation results are stored and are not applied to mastery. AE-5 does not give a numeric weight.
+Still open: mastery trend charts (SD-4, P1), CSV export (TD-5, P1), module and date filters (TD-6, P1), and the institute summary (AD-1 and AD-2, P2). Explanation results are stored and are not applied to mastery. Lesson reading is not a mastery observation. AE-5 does not give a numeric weight.
 
-Phase 3 remaining: CI hardening beyond the current red-team run, the demo seed in PRD 13.1, the README, and the PRD 13.2 pass/fail report.
+Also open: CI hardening beyond the current red-team run, the demo seed in PRD 13.1, a project README, and the PRD 13.2 pass/fail report. File upload and the OpenMAIC slide editor are not in this step.
 
 ## Deferred inside the finished phases
 

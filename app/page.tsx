@@ -46,7 +46,7 @@ async function HomeActions() {
       </Button>
       {session.user.role === "trainer" || session.user.role === "admin" ? (
         <Button asChild variant="outline">
-          <Link href="/questions">Question bank</Link>
+          <Link href="/studio">Lesson studio</Link>
         </Button>
       ) : null}
     </div>

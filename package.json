@@ -23,6 +23,7 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@neondatabase/serverless": "^1.2.0",
+    "@openmaic/generation": "0.3.18",
     "@xyflow/react": "^12.12.0",
     "better-auth": "^1.7.10",
     "bullmq": "^6.3.15",

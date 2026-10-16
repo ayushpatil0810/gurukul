@@ -13,3 +13,4 @@
 export * from "./institutes";
 export * from "./auth";
 export * from "./portal";
+export * from "./lessons";

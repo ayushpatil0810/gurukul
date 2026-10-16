@@ -19,6 +19,7 @@ export function Navbar() {
     ...(session?.user ? [{ href: "/curriculum", label: "Concept map" }] : []),
     ...(session?.user ? [{ href: "/dashboard", label: "Dashboard" }] : []),
     ...(role === "student" ? [{ href: "/practice", label: "Practice" }] : []),
+    ...(role === "trainer" || role === "admin" ? [{ href: "/studio", label: "Lesson studio" }] : []),
     ...(role === "trainer" || role === "admin" ? [{ href: "/questions", label: "Questions" }] : []),
     ...(role === "trainer" || role === "admin" ? [{ href: "/replay", label: "Replay" }] : []),
     ...(role === "trainer" || role === "admin" ? [{ href: "/review", label: "Review" }] : []),
@@ -26,8 +27,8 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-6">
+      <div className="mx-auto flex h-16 min-w-0 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="flex min-w-0 flex-1 items-center gap-6">
           <Link href="/" className="flex items-center gap-2.5 font-semibold text-foreground tracking-tight">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
               ⚡
@@ -40,7 +41,7 @@ export function Navbar() {
             ) : null}
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
+          <nav className="hidden min-w-0 overflow-x-auto md:flex items-center gap-1 text-sm font-medium">
             {navLinks.map((link) => {
               const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`));
               return (

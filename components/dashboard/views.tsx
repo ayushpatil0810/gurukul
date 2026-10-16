@@ -191,6 +191,13 @@ function Recommendation({ recommendation, practice = false }: { recommendation: 
               ))}
             </ul>
           ) : null}
+          {practice && recommendation.lesson ? (
+            <p>
+              <Link className="underline-offset-4 hover:underline" href={`/learn/${recommendation.lesson.id}`}>
+                Read the published lesson: {recommendation.lesson.title}
+              </Link>
+            </p>
+          ) : null}
           {practice ? (
             <p>
               <Link className="underline-offset-4 hover:underline" href="/practice">
