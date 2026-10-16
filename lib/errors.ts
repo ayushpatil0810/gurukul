@@ -10,6 +10,7 @@ export type ErrorCode =
   | "NOT_FOUND"
   | "CONFLICT"
   | "VALIDATION_ERROR"
+  | "RATE_LIMITED"
   | "DATABASE_ERROR"
   | "INTERNAL_SERVER_ERROR";
 
@@ -86,6 +87,14 @@ export class AppError extends Error {
       code: "VALIDATION_ERROR",
       statusCode: 422,
       details,
+    });
+  }
+
+  static tooManyRequests(message = "Too many runs. Wait a moment and try again."): AppError {
+    return new AppError({
+      message,
+      code: "RATE_LIMITED",
+      statusCode: 429,
     });
   }
 

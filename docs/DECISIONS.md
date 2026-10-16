@@ -12,6 +12,10 @@ The starter used the Neon HTTP driver. Local development uses Docker Compose Pos
 
 Compose starts Redis so later workers have a broker. No queue workers are implemented in this phase.
 
+## 2026-10-16 — Predicted success scales with difficulty
+
+The selector uses the BKT opportunity probability `p(1-slip)+(1-p)guess`, multiplied by `1 - (difficulty-1)*0.1`. It picks the unattempted question nearest a 70% chance. Ties break on question id.
+
 ## 2026-10-16 — Runs are queued in process and in BullMQ
 
 The request path uses an in-process pool with a per-student limit so `bun run dev` can run code without a second process. `bun run worker` starts a BullMQ worker on Redis that calls the same `SandboxRunner`. Student code is still executed only inside the container.

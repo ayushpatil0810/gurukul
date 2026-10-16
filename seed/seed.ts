@@ -1,10 +1,11 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { batchMembers, batchTrainers, batches, concepts, institutes, modules, questions, user } from "@/db/schema";
+import { batchMembers, batchTrainers, batches, concepts, institutes, masteryState, modules, questions, user } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { parseRole } from "@/lib/auth-fields";
 import type { Actor } from "@/lib/auth/actor";
 import { addPrerequisite, createConcept, createModule } from "@/lib/services/concepts";
+import { nextQuestion } from "@/lib/services/assessment";
 import { createQuestion } from "@/lib/services/questions";
 import {
   DEMO_BATCH,
@@ -205,6 +206,48 @@ async function main() {
       ],
     });
   }
+
+  const adaId = ids.get("ada@techsummit.example");
+  const benId = ids.get("ben@techsummit.example");
+  const variablesId = conceptIds.get("variables");
+  const functionsId = conceptIds.get("functions");
+  const classesId = conceptIds.get("classes");
+  if (!adaId || !benId || !variablesId || !functionsId || !classesId) {
+    throw new Error("Demo students or concepts were not created");
+  }
+  const masteryRows = [
+    { studentId: adaId, conceptId: variablesId, pKnow: 0.9 },
+    { studentId: adaId, conceptId: functionsId, pKnow: 0.3 },
+    { studentId: benId, conceptId: variablesId, pKnow: 0.95 },
+    { studentId: benId, conceptId: functionsId, pKnow: 0.9 },
+    { studentId: benId, conceptId: classesId, pKnow: 0.35 },
+  ];
+  for (const row of masteryRows) {
+    await db
+      .insert(masteryState)
+      .values({ ...row, instituteId })
+      .onConflictDoUpdate({
+        target: [masteryState.studentId, masteryState.conceptId],
+        set: { pKnow: row.pKnow, updatedAt: new Date() },
+      });
+  }
+
+  const adaRoute = await nextQuestion({
+    id: adaId,
+    name: "Ada Student",
+    email: "ada@techsummit.example",
+    role: "student",
+    instituteId,
+  });
+  const benRoute = await nextQuestion({
+    id: benId,
+    name: "Ben Student",
+    email: "ben@techsummit.example",
+    role: "student",
+    instituteId,
+  });
+  console.log(`route ada  ${adaRoute.decision.reason}`);
+  console.log(`route ben  ${benRoute.decision.reason}`);
 
   for (const account of DEMO_USERS) {
     await verifyLogin(account.email, account.role);
