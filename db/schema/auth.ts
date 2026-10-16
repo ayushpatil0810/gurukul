@@ -1,21 +1,33 @@
-import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import { pgTable, text, timestamp, boolean, index, check } from "drizzle-orm/pg-core";
+import { institutes } from "./institutes";
 
 /**
  * Better Auth - User table
  */
-export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-});
+export const user = pgTable(
+  "user",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    image: text("image"),
+    role: text("role").notNull().default("student"),
+    instituteId: text("institute_id").references(() => institutes.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("user_institute_id_idx").on(table.instituteId),
+    check("user_role_check", sql`${table.role} IN ('student', 'trainer', 'admin')`),
+  ],
+);
 
 /**
  * Better Auth - Session table
@@ -86,9 +98,13 @@ export const verification = pgTable(
 );
 
 // Relations
-export const userRelations = relations(user, ({ many }) => ({
+export const userRelations = relations(user, ({ one, many }) => ({
   sessions: many(session),
   accounts: many(account),
+  institute: one(institutes, {
+    fields: [user.instituteId],
+    references: [institutes.id],
+  }),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({

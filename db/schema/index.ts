@@ -10,4 +10,6 @@
  * 3. Run `npm run db:generate` or `bun run db:generate`
  */
 
+export * from "./institutes";
 export * from "./auth";
+export * from "./portal";
