@@ -1,12 +1,12 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { institutes, masteryState, user } from "@/db/schema";
+import { events, institutes, masteryState, user } from "@/db/schema";
 import type { Actor } from "@/lib/auth/actor";
 import { addPrerequisite, createConcept, createModule } from "@/lib/services/concepts";
 import { createQuestion } from "@/lib/services/questions";
 import { bktUpdate } from "@/lib/engine/bkt";
-import { hashEvent } from "@/lib/engine/event-chain";
+import { hashEvent, verifyEventChain } from "@/lib/engine/event-chain";
 import { nextQuestion, runSession, startSession, submitSession } from "@/lib/services/assessment";
 import { appendEvents, listEvents } from "@/lib/services/events";
 import { RunQueue } from "@/sandbox/queue";
@@ -153,18 +153,137 @@ describe("assessment services", () => {
     expect(gradedSubmit.mastery[0]?.before).toBeCloseTo(0.3, 6);
     expect(gradedSubmit.mastery[0]?.after).toBeCloseTo(bktUpdate(0.3, true), 10);
 
+    const masteryBefore = (
+      await db.select().from(masteryState).where(eq(masteryState.studentId, adaId))
+    ).sort((left, right) => left.conceptId.localeCompare(right.conceptId));
     const timeline = await appendEvents(ada, practice.id, [
       { seq: 1, t: 0, type: "session_start", payload: {} },
       { seq: 2, t: 8, type: "insert", payload: { length: 1 } },
     ]);
+    expect(timeline.acked).toEqual([1, 2]);
+    expect(timeline.events.map((event) => event.seq)).toEqual([1, 2]);
+    expect(timeline.events.every((event) => event.schemaVersion === 2 && event.receivedAt)).toBe(true);
+    const receivedAt = timeline.events[0]?.receivedAt;
+
     const withGap = await appendEvents(ada, practice.id, [
-      { seq: 4, t: 40, type: "paste", payload: { length: 12 } },
+      { seq: 4, t: 40, type: "paste", payload: { length: 12, receivedAt: "1999-01-01T00:00:00.000Z", prevHash: "client" } },
     ]);
-    expect(withGap.map((event) => event.seq)).toEqual([1, 2, 3, 4]);
-    expect(withGap[2]?.type).toBe("data_quality");
-    expect(withGap[3]?.prevHash).toBe(hashEvent(withGap[2]!));
-    expect(timeline).toHaveLength(2);
-    expect(await listEvents(ada, practice.id)).toEqual(withGap);
+    expect(withGap.acked).toEqual([4]);
+    expect(withGap.events.filter((event) => event.seq < 1_000_001).map((event) => event.seq)).toEqual([1, 2, 4]);
+    const note = withGap.events.find((event) => event.type === "data_quality");
+    expect(note?.payload).toMatchObject({ missingFrom: 3, missingTo: 3, misconduct: false });
+    expect(withGap.events.find((event) => event.seq === 4)?.payload).toEqual({ length: 12 });
+    expect(withGap.events.find((event) => event.seq === 4)?.t).toBe(40);
+    expect(withGap.events.find((event) => event.seq === 1)?.receivedAt).toBe(receivedAt);
+    expect(verifyEventChain(withGap.events)).toBe(true);
+
+    const late = await appendEvents(ada, practice.id, [
+      {
+        seq: 3,
+        t: 15,
+        type: "insert",
+        payload: { schemaVersion: 2, range: { start: 0, end: 0 }, text: "x", removed: "" },
+      },
+    ]);
+    expect(late.events.find((event) => event.seq === 3)).toMatchObject({ t: 15, type: "insert" });
+    expect(late.events.some((event) => event.type === "data_quality" && (event.payload as { resolved?: boolean }).resolved)).toBe(
+      true,
+    );
+    expect(verifyEventChain(late.events)).toBe(true);
+
+    const duplicate = await appendEvents(ada, practice.id, [
+      { seq: 3, t: 999, type: "delete", payload: { length: 9 } },
+    ]);
+    expect(duplicate.acked).toEqual([3]);
+    expect(duplicate.events.find((event) => event.seq === 3)?.t).toBe(15);
+    expect(duplicate.events.find((event) => event.seq === 3)?.type).toBe("insert");
+    expect(await listEvents(ada, practice.id)).toEqual(duplicate.events);
+    expect(
+      (await db.select().from(masteryState).where(eq(masteryState.studentId, adaId))).sort((left, right) =>
+        left.conceptId.localeCompare(right.conceptId),
+      ),
+    ).toEqual(masteryBefore);
+
     await expect(listEvents(ben, practice.id)).rejects.toMatchObject({ statusCode: 403 });
+    await expect(
+      appendEvents(ben, practice.id, [{ seq: 5, t: 1, type: "focus", payload: {} }]),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    await expect(
+      appendEvents(trainer, practice.id, [{ seq: 5, t: 1, type: "focus", payload: {} }]),
+    ).rejects.toMatchObject({ statusCode: 403 });
+
+    const gradedEvents = await appendEvents(ada, graded.id, [{ seq: 1, t: 0, type: "session_start", payload: {} }]);
+    expect(gradedEvents.acked).toEqual([1]);
+    expect(JSON.stringify(gradedEvents)).not.toContain(secret);
+    expect(JSON.stringify(gradedEvents)).not.toContain("expectedOutput");
+
+    await Promise.all([
+      appendEvents(ada, practice.id, [{ seq: 5, t: 50, type: "focus", payload: { marker: "five" } }]),
+      appendEvents(ada, practice.id, [{ seq: 6, t: 60, type: "blur", payload: { marker: "six" } }]),
+    ]);
+    const concurrent = await listEvents(ada, practice.id);
+    expect(concurrent.find((event) => event.seq === 5)?.type).toBe("focus");
+    expect(concurrent.find((event) => event.seq === 6)?.type).toBe("blur");
+    expect(verifyEventChain(concurrent)).toBe(true);
+
+    const legacySession = await startSession(ada, { questionId: functionsQuestion.id, mode: "practice" });
+    const legacyStart = {
+      seq: 1,
+      t: 0,
+      type: "session_start",
+      payload: {},
+      prevHash: null as string | null,
+      chainIndex: 1,
+      schemaVersion: 1,
+    };
+    const legacyInsert = {
+      seq: 2,
+      t: 5,
+      type: "insert",
+      payload: { length: 1 },
+      prevHash: hashEvent(legacyStart),
+      chainIndex: 2,
+      schemaVersion: 1,
+    };
+    const legacyGap = {
+      seq: 3,
+      t: 6,
+      type: "data_quality",
+      payload: { missing: 3 },
+      prevHash: hashEvent(legacyInsert),
+      chainIndex: 3,
+      schemaVersion: 1,
+    };
+    await db.insert(events).values(
+      [legacyStart, legacyInsert, legacyGap].map((event) => ({
+        sessionId: legacySession.id,
+        instituteId,
+        seq: event.seq,
+        t: event.t,
+        type: event.type,
+        payloadJson: event.payload,
+        prevHash: event.prevHash,
+        schemaVersion: event.schemaVersion,
+        chainIndex: event.chainIndex,
+      })),
+    );
+    const continued = await appendEvents(ada, legacySession.id, [
+      { seq: 4, t: 9, type: "paste", payload: { length: 2 } },
+    ]);
+    expect(verifyEventChain(continued.events)).toBe(true);
+    expect(continued.events.find((event) => event.seq === 4)?.prevHash).toBe(hashEvent(legacyGap));
+    const replay = await appendEvents(ada, legacySession.id, [
+      { seq: 3, t: 99, type: "insert", payload: { text: "invented" } },
+    ]);
+    expect(replay.acked).toEqual([3]);
+    expect(replay.events.find((event) => event.seq === 3)).toMatchObject({
+      type: "data_quality",
+      t: 6,
+      payload: { missing: 3 },
+      schemaVersion: 1,
+      receivedAt: null,
+    });
+    expect(continued.events.find((event) => event.seq === 4)?.schemaVersion).toBe(2);
+    expect(continued.events.find((event) => event.seq === 4)?.receivedAt).toEqual(expect.any(String));
   });
 });

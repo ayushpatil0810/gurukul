@@ -1,10 +1,11 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { batchMembers, batchTrainers, batches, concepts, institutes, masteryState, modules, questions, user } from "@/db/schema";
+import { batchMembers, batchTrainers, batches, concepts, events, institutes, learningSessions, masteryState, modules, questions, user } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { parseRole } from "@/lib/auth-fields";
 import type { Actor } from "@/lib/auth/actor";
 import { addPrerequisite, createConcept, createModule } from "@/lib/services/concepts";
+import { planEventAppend } from "@/lib/engine/event-chain";
 import { nextQuestion } from "@/lib/services/assessment";
 import { createQuestion } from "@/lib/services/questions";
 import {
@@ -249,6 +250,30 @@ async function main() {
   console.log(`route ada  ${adaRoute.decision.reason}`);
   console.log(`route ben  ${benRoute.decision.reason}`);
 
+  const [replayQuestion] = await db
+    .select({ id: questions.id })
+    .from(questions)
+    .where(eq(questions.instituteId, instituteId))
+    .limit(1);
+  if (replayQuestion) {
+    await replaceReplaySession({
+      sessionId: "demo-replay-valid",
+      instituteId,
+      studentId: adaId,
+      questionId: replayQuestion.id,
+      events: validReplayEvents(),
+    });
+    await replaceReplaySession({
+      sessionId: "demo-replay-incomplete",
+      instituteId,
+      studentId: adaId,
+      questionId: replayQuestion.id,
+      events: incompleteReplayEvents(),
+    });
+    console.log("replay    /replay/demo-replay-valid");
+    console.log("replay    /replay/demo-replay-incomplete");
+  }
+
   for (const account of DEMO_USERS) {
     await verifyLogin(account.email, account.role);
   }
@@ -256,6 +281,75 @@ async function main() {
   console.log(`institute ${DEMO_INSTITUTE}`);
   console.log(`password  ${DEMO_PASSWORD}`);
   console.log(`questions ${DEMO_QUESTIONS.length}`);
+}
+
+function validReplayEvents() {
+  const baseline = "function total(n) {\n  return ";
+  const withDigit = `${baseline}n`;
+  return [
+    { seq: 1, t: 0, type: "session_start", payload: { mode: "practice", baseline } },
+    { seq: 2, t: 450, type: "insert", payload: editorInsert(baseline.length, "n") },
+    { seq: 3, t: 1100, type: "insert", payload: editorInsert(withDigit.length, " + 1;\n}") },
+    { seq: 4, t: 1800, type: "run", payload: { language: "javascript" } },
+    { seq: 5, t: 1900, type: "run_result", payload: { outcomes: ["ok"] } },
+    { seq: 6, t: 2600, type: "submit", payload: { language: "javascript" } },
+    { seq: 7, t: 2700, type: "submit_result", payload: { passed: 1, total: 2, categories: ["pass", "pass"] } },
+  ];
+}
+
+function incompleteReplayEvents() {
+  const baseline = "let value = ";
+  return [
+    { seq: 1, t: 0, type: "session_start", payload: { mode: "practice", baseline } },
+    { seq: 2, t: 300, type: "insert", payload: editorInsert(baseline.length, "1") },
+    { seq: 3, t: 700, type: "insert", payload: { length: 8 } },
+    { seq: 5, t: 1400, type: "insert", payload: editorInsert(baseline.length + 1, ";") },
+  ];
+}
+
+function editorInsert(at: number, text: string) {
+  return {
+    schemaVersion: 2,
+    range: { start: at, end: at },
+    text,
+    removed: "",
+    length: text.length,
+    removedLength: 0,
+  };
+}
+
+async function replaceReplaySession(input: {
+  sessionId: string;
+  instituteId: string;
+  studentId: string;
+  questionId: string;
+  events: { seq: number; t: number; type: string; payload: Record<string, unknown> }[];
+}) {
+  await db.delete(events).where(eq(events.sessionId, input.sessionId));
+  await db.delete(learningSessions).where(eq(learningSessions.id, input.sessionId));
+  await db.insert(learningSessions).values({
+    id: input.sessionId,
+    instituteId: input.instituteId,
+    studentId: input.studentId,
+    questionId: input.questionId,
+    mode: "practice",
+  });
+  const planned = planEventAppend([], input.events);
+  if (planned.length === 0) return;
+  await db.insert(events).values(
+    planned.map((event) => ({
+      sessionId: input.sessionId,
+      instituteId: input.instituteId,
+      seq: event.seq,
+      t: event.t,
+      type: event.type,
+      payloadJson: (event.payload ?? {}) as Record<string, unknown>,
+      prevHash: event.prevHash,
+      schemaVersion: event.schemaVersion,
+      chainIndex: event.chainIndex,
+      receivedAt: new Date(),
+    })),
+  );
 }
 
 main()

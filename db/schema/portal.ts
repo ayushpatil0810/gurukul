@@ -399,9 +399,13 @@ export const events = pgTable(
     type: text("type").notNull(),
     payloadJson: jsonb("payload_json").notNull().default({}),
     prevHash: text("prev_hash"),
+    schemaVersion: integer("schema_version").notNull().default(1),
+    receivedAt: timestamp("received_at"),
+    chainIndex: integer("chain_index").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.sessionId, table.seq] }),
+    uniqueIndex("events_session_chain_idx").on(table.sessionId, table.chainIndex),
     index("events_institute_id_idx").on(table.instituteId),
   ],
 );

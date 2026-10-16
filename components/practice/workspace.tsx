@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import type { OnMount } from "@monaco-editor/react";
 import { Button } from "@/components/ui/button";
 import { SessionRecorder } from "@/components/practice/recorder";
+import { classifyModelChanges } from "@/lib/engine/editor-events";
+import { openRecording } from "@/lib/engine/session-clock";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -92,13 +94,44 @@ export function PracticeWorkspace({
   const recorder = useRef<SessionRecorder | null>(null);
   const pasted = useRef(false);
   const acceptedSuggestion = useRef(false);
+  const documentText = useRef(initial.question?.starterCode[startingLanguage(initial.question)] ?? "");
+  const pendingBaseline = useRef<string | null>(null);
+  const pendingEdits = useRef<{ type: string; payload: Record<string, unknown>; at: number }[]>([]);
+  const suppressCapture = useRef(false);
+  const starting = useRef<Promise<SessionInfo> | null>(null);
+  const sessionRef = useRef<SessionInfo | null>(null);
+  const modeRef = useRef(mode);
+  const acceptedRef = useRef(accepted);
+  const questionRef = useRef(initial.question);
+
+  useEffect(() => {
+    modeRef.current = mode;
+    acceptedRef.current = accepted;
+    questionRef.current = next.question ?? null;
+    if (session) sessionRef.current = session;
+    else if (!recorder.current) sessionRef.current = null;
+  }, [mode, accepted, next.question, session]);
+
+  function resetCapture(nextText: string) {
+    pendingEdits.current = [];
+    pendingBaseline.current = null;
+    documentText.current = nextText;
+  }
 
   async function load() {
     const learning = await api<NextPayload>("/api/learning");
-    setNext(learning);
     const nextLanguage = startingLanguage(learning.question);
+    const nextText = learning.question?.starterCode[nextLanguage] ?? "";
+    questionRef.current = learning.question;
+    suppressCapture.current = documentText.current !== nextText;
+    recorder.current?.record("session_end");
+    recorder.current?.dispose();
+    recorder.current = null;
+    sessionRef.current = null;
+    resetCapture(nextText);
+    setNext(learning);
     setLanguage(nextLanguage);
-    setCode(learning.question?.starterCode[nextLanguage] ?? "");
+    setCode(nextText);
     setSession(null);
     setVisibleResults(null);
     setSubmitResult(null);
@@ -116,55 +149,140 @@ export function PracticeWorkspace({
   const question = next?.question ?? null;
 
   async function ensureSession() {
-    if (session && session.mode === mode) return session;
-    if (!question) throw new Error("No question is available");
-    if (mode === "graded" && !accepted) throw new Error("Record consent before a graded session.");
+    const current = sessionRef.current;
+    const currentMode = modeRef.current;
+    if (current && current.mode === currentMode && recorder.current) return current;
+    if (starting.current) return starting.current;
+    const pending = actuallyStart();
+    starting.current = pending;
+    try {
+      return await pending;
+    } finally {
+      if (starting.current === pending) starting.current = null;
+    }
+  }
+
+  async function actuallyStart(): Promise<SessionInfo> {
+    const currentQuestion = questionRef.current;
+    const currentMode = modeRef.current;
+    if (!currentQuestion) throw new Error("No question is available");
+    if (currentMode === "graded" && !acceptedRef.current) throw new Error("Record consent before a graded session.");
     const created = await api<SessionInfo>("/api/sessions", {
       method: "POST",
-      body: JSON.stringify({ questionId: question.id, mode }),
+      body: JSON.stringify({ questionId: currentQuestion.id, mode: currentMode }),
     });
+    if (modeRef.current !== currentMode || questionRef.current?.id !== currentQuestion.id) {
+      throw new Error("Session start was interrupted.");
+    }
+    const buffered = pendingEdits.current.splice(0);
+    const baseline = pendingBaseline.current ?? documentText.current;
+    pendingBaseline.current = null;
+    const now = Date.now();
+    const opened = openRecording({ buffered, now, mode: created.mode, baseline });
     recorder.current?.record("session_end");
     recorder.current?.dispose();
-    const nextRecorder = new SessionRecorder(created.id);
+    const nextRecorder = new SessionRecorder(created.id, { originMs: opened.originMs });
     recorder.current = nextRecorder;
-    nextRecorder.record("session_start", { mode: created.mode });
+    let batch: { type: string; payload: Record<string, unknown>; at: number }[] = opened.entries;
+    while (batch.length > 0) {
+      for (const entry of batch) nextRecorder.recordAt(entry.type, entry.payload, entry.at);
+      batch = pendingEdits.current.splice(0);
+    }
+    sessionRef.current = created;
     setSession(created);
     return created;
   }
 
   async function accept() {
     const consent = await api<{ accepted: boolean; consentText: string }>("/api/consent", { method: "POST" });
+    acceptedRef.current = consent.accepted;
     setAccepted(consent.accepted);
     setConsentText(consent.consentText);
   }
 
+  function capture(type: string, payload: Record<string, unknown> = {}) {
+    if (modeRef.current === "graded" && !acceptedRef.current) return;
+    if (recorder.current && !starting.current) {
+      recorder.current.record(type, payload);
+      return;
+    }
+    pendingEdits.current.push({ type, payload, at: Date.now() });
+  }
+
   const onMount: OnMount = (editor) => {
-    editor.onDidPaste(() => {
-      pasted.current = true;
-    });
+    documentText.current = editor.getModel()?.getValue() ?? documentText.current;
+    const dom = editor.getContainerDomNode();
+    dom.addEventListener(
+      "paste",
+      () => {
+        pasted.current = true;
+        window.setTimeout(() => {
+          pasted.current = false;
+        }, 0);
+      },
+      true,
+    );
     const suggest = editor.getContribution("editor.contrib.suggestController") as {
-      model?: { onDidAccept?: (listener: () => void) => void };
+      model?: { accept?: (item: unknown) => unknown };
     } | null;
-    suggest?.model?.onDidAccept?.(() => {
-      acceptedSuggestion.current = true;
-    });
+    const suggestModel = suggest?.model;
+    if (suggestModel?.accept) {
+      const acceptSuggestion = suggestModel.accept.bind(suggestModel);
+      suggestModel.accept = (item: unknown) => {
+        acceptedSuggestion.current = true;
+        try {
+          return acceptSuggestion(item);
+        } finally {
+          window.setTimeout(() => {
+            acceptedSuggestion.current = false;
+          }, 0);
+        }
+      };
+    }
     editor.onDidChangeModelContent((event) => {
-      const length = event.changes.reduce((sum, change) => sum + change.text.length, 0);
-      const removed = event.changes.reduce((sum, change) => sum + change.rangeLength, 0);
-      if (event.isUndoing) recorder.current?.record("undo", { length: removed });
-      else if (event.isRedoing) recorder.current?.record("redo", { length });
-      else if (pasted.current) recorder.current?.record("paste", { length });
-      else if (acceptedSuggestion.current) recorder.current?.record("autocomplete_accept", { length });
-      else if (removed > 0 && length === 0) recorder.current?.record("delete", { length: removed });
-      else if (length > 0) recorder.current?.record("insert", { length });
+      const previous = documentText.current;
+      const nextText = editor.getModel()?.getValue() ?? previous;
+      if (suppressCapture.current) {
+        documentText.current = nextText;
+        suppressCapture.current = false;
+        pasted.current = false;
+        acceptedSuggestion.current = false;
+        return;
+      }
+      if (modeRef.current === "graded" && !acceptedRef.current) {
+        documentText.current = nextText;
+        pasted.current = false;
+        acceptedSuggestion.current = false;
+        return;
+      }
+      const edits = classifyModelChanges({
+        previousText: previous,
+        changes: event.changes.map((change) => ({
+          rangeOffset: change.rangeOffset,
+          rangeLength: change.rangeLength,
+          text: change.text,
+        })),
+        isUndoing: event.isUndoing,
+        isRedoing: event.isRedoing,
+        pasted: pasted.current,
+        autocomplete: acceptedSuggestion.current,
+      });
+      if (edits.length > 0 && !recorder.current && pendingBaseline.current === null) {
+        pendingBaseline.current = previous;
+      }
+      for (const edit of edits) {
+        capture(edit.type, { ...edit.payload, range: { ...edit.payload.range } });
+      }
+      documentText.current = nextText;
       pasted.current = false;
       acceptedSuggestion.current = false;
+      if (edits.length > 0 && !recorder.current) void ensureSession().catch(() => undefined);
     });
-    editor.onDidFocusEditorText(() => recorder.current?.record("focus"));
-    editor.onDidBlurEditorText(() => recorder.current?.record("blur"));
+    editor.onDidFocusEditorText(() => capture("focus"));
+    editor.onDidBlurEditorText(() => capture("blur"));
     const node = editor.getContainerDomNode();
-    node.addEventListener("copy", () => recorder.current?.record("copy"));
-    node.addEventListener("cut", () => recorder.current?.record("cut"));
+    node.addEventListener("copy", () => capture("copy"));
+    node.addEventListener("cut", () => capture("cut"));
   };
 
   async function run() {
@@ -258,7 +376,14 @@ export function PracticeWorkspace({
                 className="rounded-md border border-border bg-background px-2 py-1 text-sm"
                 value={mode}
                 onChange={(event) => {
-                  setMode(event.target.value === "graded" ? "graded" : "practice");
+                  const nextMode = event.target.value === "graded" ? "graded" : "practice";
+                  recorder.current?.record("session_end");
+                  recorder.current?.dispose();
+                  recorder.current = null;
+                  sessionRef.current = null;
+                  modeRef.current = nextMode;
+                  resetCapture(documentText.current);
+                  setMode(nextMode);
                   setSession(null);
                 }}
               >

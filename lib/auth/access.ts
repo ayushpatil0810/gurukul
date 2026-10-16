@@ -46,3 +46,27 @@ export function decideStudentRead(input: {
 export function roleAllowed(role: Role, allowed: readonly Role[]): boolean {
   return allowed.includes(role);
 }
+
+export type ReplaySessionRecord = {
+  instituteId: string;
+  studentId: string;
+};
+
+/**
+ * Replay is a trainer and admin review surface. Students are refused even for
+ * their own session. A session outside the actor's institute is hidden.
+ * Trainers still need a shared batch, matching student-profile access.
+ */
+export function decideReplayRead(input: {
+  actor: AccessActor;
+  session: ReplaySessionRecord | null;
+  sharesBatch: boolean;
+}): AccessDecision {
+  const { actor, session, sharesBatch } = input;
+  if (!session) return "not_found";
+  const sameInstitute = actor.instituteId !== null && actor.instituteId === session.instituteId;
+  if (!sameInstitute) return "not_found";
+  if (actor.role === "admin") return "allow";
+  if (actor.role === "trainer") return sharesBatch ? "allow" : "forbidden";
+  return "forbidden";
+}

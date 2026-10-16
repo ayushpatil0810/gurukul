@@ -15,6 +15,13 @@
       "when": 1792156222688,
       "tag": "0001_certain_agent_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792171414141,
+      "tag": "0002_strong_onslaught",
+      "breakpoints": true
     }
   ]
 }

@@ -19,6 +19,7 @@ export function Navbar() {
     ...(session?.user ? [{ href: "/curriculum", label: "Concept map" }] : []),
     ...(role === "student" ? [{ href: "/practice", label: "Practice" }] : []),
     ...(role === "trainer" || role === "admin" ? [{ href: "/questions", label: "Questions" }] : []),
+    ...(role === "trainer" || role === "admin" ? [{ href: "/replay", label: "Replay" }] : []),
   ];
 
   return (

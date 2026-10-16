@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { parseRole } from "@/lib/auth-fields";
 import type { Actor } from "@/lib/auth/actor";
 import { env } from "@/lib/env";
+import { ingestErrorMessage } from "@/lib/engine/ingest-error";
 import { appendEvents } from "@/lib/services/events";
 import { eventBatchSchema } from "@/lib/validations/assessment";
 
@@ -31,15 +32,16 @@ async function handle(socket: import("ws").WebSocket, request: import("node:http
 }
 
 async function receive(socket: import("ws").WebSocket, actor: Actor, raw: string) {
+  let batchId: string | null = null;
   try {
-    const body = JSON.parse(raw) as { sessionId?: string; events?: unknown };
+    const body = JSON.parse(raw) as { sessionId?: string; events?: unknown; batchId?: unknown };
+    batchId = typeof body.batchId === "string" ? body.batchId : null;
     const input = eventBatchSchema.parse({ events: body.events });
     if (!body.sessionId) throw new Error("Session is required");
-    await appendEvents(actor, body.sessionId, input.events);
-    socket.send(JSON.stringify({ ok: true }));
+    const result = await appendEvents(actor, body.sessionId, input.events);
+    socket.send(JSON.stringify({ ok: true, batchId, acked: result.acked }));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not store events";
-    socket.send(JSON.stringify({ ok: false, error: message }));
+    socket.send(JSON.stringify({ ok: false, batchId, error: ingestErrorMessage(error) }));
   }
 }
 

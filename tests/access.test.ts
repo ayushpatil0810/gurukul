@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { forceStudentOnCreate, stripPrivilegedUserFields } from "@/lib/auth-fields";
-import { decideStudentRead, type AccessActor, type StudentRecord } from "@/lib/auth/access";
+import { decideReplayRead, decideStudentRead, type AccessActor, type StudentRecord } from "@/lib/auth/access";
 
 const institute = "inst-1";
 
@@ -81,6 +81,40 @@ describe("student data access", () => {
         sharesBatch: false,
       }),
     ).toBe("not_found");
+  });
+});
+
+describe("replay access", () => {
+  const session = { instituteId: institute, studentId: "s1" };
+
+  it("refuses a student, including the student who owns the session", () => {
+    expect(decideReplayRead({ actor: actor({ id: "s1", role: "student" }), session, sharesBatch: true })).toBe(
+      "forbidden",
+    );
+    expect(decideReplayRead({ actor: actor({ id: "s2", role: "student" }), session, sharesBatch: true })).toBe(
+      "forbidden",
+    );
+  });
+
+  it("hides a session from another institute", () => {
+    expect(
+      decideReplayRead({
+        actor: actor({ id: "t1", role: "trainer" }),
+        session: { instituteId: "other", studentId: "s1" },
+        sharesBatch: true,
+      }),
+    ).toBe("not_found");
+    expect(decideReplayRead({ actor: actor({ id: "t1", role: "trainer" }), session: null, sharesBatch: false })).toBe(
+      "not_found",
+    );
+  });
+
+  it("lets a trainer read a shared batch and an admin read the institute", () => {
+    expect(decideReplayRead({ actor: actor({ id: "t1", role: "trainer" }), session, sharesBatch: true })).toBe("allow");
+    expect(decideReplayRead({ actor: actor({ id: "t1", role: "trainer" }), session, sharesBatch: false })).toBe(
+      "forbidden",
+    );
+    expect(decideReplayRead({ actor: actor({ id: "a1", role: "admin" }), session, sharesBatch: false })).toBe("allow");
   });
 });
 

@@ -17,7 +17,7 @@ export const eventBatchSchema = z.object({
     .array(
       z.object({
         seq: z.number().int().positive().max(1_000_000),
-        t: z.number().nonnegative(),
+        t: z.number().finite().gte(-86_400_000).lte(31_536_000_000),
         type: z.enum(clientEventTypes),
         payload: z.record(z.string(), z.unknown()).default({}),
       }),

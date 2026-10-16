@@ -1,54 +1,61 @@
-export type ClientEvent = {
-  seq: number;
-  t: number;
-  type: string;
-  payload: Record<string, unknown>;
-};
+import { acknowledgementSeqs, EventBuffer, shouldContinueAfterAck, type ClientEvent } from "@/lib/engine/event-buffer";
+
+export type { ClientEvent };
 
 const STORAGE_PREFIX = "portal-events:";
+const MAX_BATCH = 100;
 
 export class SessionRecorder {
+  private buffer: EventBuffer;
   private socket: WebSocket | null = null;
-  private queue: ClientEvent[] = [];
-  private seq = 0;
   private closed = false;
   private reconnectTimer = 0;
+  private posting = false;
+  private readonly inflight = new Map<string, number[]>();
 
-  constructor(private readonly sessionId: string) {
+  constructor(
+    private readonly sessionId: string,
+    options?: { originMs?: number },
+  ) {
     const saved = window.localStorage.getItem(this.storageKey);
     if (saved) {
-      const parsed = JSON.parse(saved) as { seq?: number; queue?: ClientEvent[] };
-      this.seq = parsed.seq ?? 0;
-      this.queue = parsed.queue ?? [];
+      const parsed = JSON.parse(saved) as { seq?: number; queue?: ClientEvent[]; originMs?: number };
+      this.buffer = EventBuffer.restore(parsed);
+    } else {
+      this.buffer = EventBuffer.create(options?.originMs ?? Date.now());
     }
     this.connect();
-    if (this.queue.length > 0) void this.post();
+    if (this.buffer.snapshot().length > 0) void this.post();
   }
 
   record(type: string, payload: Record<string, unknown> = {}) {
-    this.seq += 1;
-    this.queue.push({
-      seq: this.seq,
-      t: Math.round(performance.now() * 1000) / 1000,
-      type,
-      payload,
-    });
-    this.persist();
-    this.flush();
+    this.buffer.record(type, payload, Date.now());
+    this.afterRecord();
+  }
+
+  recordAt(type: string, payload: Record<string, unknown>, at: number) {
+    this.buffer.recordAt(type, payload, at);
+    this.afterRecord();
   }
 
   dispose() {
     this.closed = true;
     window.clearTimeout(this.reconnectTimer);
-    if (this.queue.length > 0) {
+    const pending = this.buffer.snapshot();
+    if (pending.length > 0) {
       void fetch(`/api/sessions/${this.sessionId}/events`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ events: this.queue }),
+        body: JSON.stringify({ events: pending.slice(0, MAX_BATCH) }),
         keepalive: true,
       });
     }
     this.socket?.close();
+  }
+
+  private afterRecord() {
+    this.persist();
+    this.flush();
   }
 
   private get storageKey() {
@@ -56,7 +63,7 @@ export class SessionRecorder {
   }
 
   private persist() {
-    window.localStorage.setItem(this.storageKey, JSON.stringify({ seq: this.seq, queue: this.queue }));
+    window.localStorage.setItem(this.storageKey, JSON.stringify(this.buffer.serialize()));
   }
 
   private connect() {
@@ -66,10 +73,28 @@ export class SessionRecorder {
     this.socket = socket;
     socket.addEventListener("open", () => this.flush());
     socket.addEventListener("message", (message) => {
-      const body = JSON.parse(String(message.data)) as { ok?: boolean };
-      if (body.ok) this.clearSent();
+      let body: { ok?: boolean; acked?: unknown; batchId?: unknown };
+      try {
+        body = JSON.parse(String(message.data)) as { ok?: boolean; acked?: unknown; batchId?: unknown };
+      } catch {
+        void this.post();
+        return;
+      }
+      const batchId = typeof body.batchId === "string" ? body.batchId : null;
+      if (!body.ok) {
+        if (batchId) this.inflight.delete(batchId);
+        void this.post();
+        return;
+      }
+      if (batchId) this.inflight.delete(batchId);
+      const acked = acknowledgementSeqs(body.acked);
+      if (acked === null || acked.length === 0) return;
+      this.buffer.acknowledge(acked);
+      this.persist();
+      this.flush();
     });
     socket.addEventListener("close", () => {
+      this.inflight.clear();
       if (this.closed) return;
       this.reconnectTimer = window.setTimeout(() => this.connect(), 1000);
       void this.post();
@@ -77,23 +102,50 @@ export class SessionRecorder {
   }
 
   private flush() {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN || this.queue.length === 0) return;
-    this.socket.send(JSON.stringify({ sessionId: this.sessionId, events: this.queue }));
+    if (this.closed || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      void this.post();
+      return;
+    }
+    const batch = this.buffer.snapshot().slice(0, MAX_BATCH);
+    if (batch.length === 0) return;
+    const signature = batch.map((event) => event.seq).join(",");
+    for (const seqs of this.inflight.values()) {
+      if (seqs.join(",") === signature) return;
+    }
+    const batchId = `${signature}:${this.inflight.size}`;
+    this.inflight.set(batchId, batch.map((event) => event.seq));
+    this.socket.send(JSON.stringify({ sessionId: this.sessionId, batchId, events: batch }));
   }
 
   private async post() {
-    if (this.queue.length === 0) return;
-    const batch = this.queue;
-    const response = await fetch(`/api/sessions/${this.sessionId}/events`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ events: batch }),
-    });
-    if (response.ok) this.clearSent();
-  }
-
-  private clearSent() {
-    this.queue = [];
-    this.persist();
+    if (this.posting || this.closed) return;
+    const batch = this.buffer.snapshot().slice(0, MAX_BATCH);
+    if (batch.length === 0) return;
+    this.posting = true;
+    let scheduleRest = false;
+    try {
+      const response = await fetch(`/api/sessions/${this.sessionId}/events`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ events: batch }),
+      });
+      if (!response.ok) return;
+      const body = (await response.json()) as { success?: boolean; acked?: unknown };
+      if (body.success === false) return;
+      const acked = acknowledgementSeqs(body.acked);
+      if (acked === null) return;
+      this.buffer.acknowledge(acked);
+      this.persist();
+      scheduleRest = shouldContinueAfterAck(
+        batch.map((event) => event.seq),
+        this.buffer.snapshot().map((event) => event.seq),
+        acked,
+      );
+    } catch {
+      return;
+    } finally {
+      this.posting = false;
+    }
+    if (scheduleRest) void this.post();
   }
 }

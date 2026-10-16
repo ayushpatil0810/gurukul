@@ -1,15 +1,17 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { events, learningSessions } from "@/db/schema";
 import type { Actor } from "@/lib/auth/actor";
+import { planEventAppend, seqsToAcknowledge, type TimelineEvent } from "@/lib/engine/event-chain";
+import { gradedRecordingAllowed, sanitizeClientPayload } from "@/lib/engine/event-payload";
 import { AppError } from "@/lib/errors";
-import { planEventAppend, type TimelineEvent } from "@/lib/engine/event-chain";
 
 export const clientEventTypes = [
   "session_start",
   "session_end",
   "insert",
   "delete",
+  "replace",
   "paste",
   "cut",
   "copy",
@@ -35,49 +37,93 @@ export type IncomingEvent = {
   payload: Record<string, unknown>;
 };
 
-export async function appendEvents(actor: Actor, sessionId: string, incoming: IncomingEvent[]) {
+export type StoredEvent = TimelineEvent & {
+  receivedAt: string | null;
+};
+
+export type AppendResult = {
+  events: StoredEvent[];
+  acked: number[];
+};
+
+export async function appendEvents(actor: Actor, sessionId: string, incoming: IncomingEvent[]): Promise<AppendResult> {
   const session = await ownedSession(actor, sessionId);
-  const existing = await listRows(sessionId);
-  const planned = planEventAppend(existing, incoming);
-  if (planned.length === 0) return listRows(sessionId);
+  if (!gradedRecordingAllowed(session)) {
+    throw AppError.conflict("Record consent before recording a graded session.");
+  }
 
-  await db.insert(events).values(
-    planned.map((event) => ({
-      sessionId,
-      seq: event.seq,
-      instituteId: session.instituteId,
-      t: event.t,
-      type: event.type,
-      payloadJson: event.payload ?? {},
-      prevHash: event.prevHash,
-    })),
-  );
-  return listRows(sessionId);
+  const receivedAt = new Date();
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select id from learning_sessions where id = ${sessionId} for update`);
+    const existing = await readEvents(tx, sessionId);
+    const planned = planEventAppend(
+      existing,
+      incoming.map((event) => ({
+        seq: event.seq,
+        t: event.t,
+        type: event.type,
+        payload: sanitizeClientPayload(event.payload),
+      })),
+    );
+    if (planned.length > 0) {
+      await tx
+        .insert(events)
+        .values(
+          planned.map((event) => ({
+            sessionId,
+            seq: event.seq,
+            instituteId: session.instituteId,
+            t: event.t,
+            type: event.type,
+            payloadJson: (event.payload ?? {}) as Record<string, unknown>,
+            prevHash: event.prevHash,
+            schemaVersion: event.schemaVersion,
+            receivedAt,
+            chainIndex: event.chainIndex,
+          })),
+        )
+        .onConflictDoNothing();
+    }
+    const stored = await readEvents(tx, sessionId);
+    return {
+      events: stored,
+      acked: seqsToAcknowledge(stored, incoming.map((event) => event.seq)),
+    };
+  });
 }
 
-export async function listEvents(actor: Actor, sessionId: string) {
+export async function listEvents(actor: Actor, sessionId: string): Promise<StoredEvent[]> {
   await ownedSession(actor, sessionId);
-  return listRows(sessionId);
+  return readEvents(db, sessionId);
 }
 
-async function listRows(sessionId: string): Promise<TimelineEvent[]> {
-  const rows = await db
+async function readEvents(
+  database: Pick<typeof db, "select">,
+  sessionId: string,
+): Promise<StoredEvent[]> {
+  const rows = await database
     .select({
       seq: events.seq,
       t: events.t,
       type: events.type,
       payload: events.payloadJson,
       prevHash: events.prevHash,
+      schemaVersion: events.schemaVersion,
+      receivedAt: events.receivedAt,
+      chainIndex: events.chainIndex,
     })
     .from(events)
     .where(eq(events.sessionId, sessionId))
-    .orderBy(asc(events.seq));
+    .orderBy(asc(events.chainIndex));
   return rows.map((row) => ({
     seq: row.seq,
     t: row.t,
     type: row.type,
     payload: row.payload,
     prevHash: row.prevHash,
+    schemaVersion: row.schemaVersion,
+    receivedAt: row.receivedAt ? row.receivedAt.toISOString() : null,
+    chainIndex: row.chainIndex,
   }));
 }
 
@@ -90,6 +136,8 @@ async function ownedSession(actor: Actor, sessionId: string) {
       id: learningSessions.id,
       studentId: learningSessions.studentId,
       instituteId: learningSessions.instituteId,
+      mode: learningSessions.mode,
+      consentId: learningSessions.consentId,
     })
     .from(learningSessions)
     .where(eq(learningSessions.id, sessionId))
