@@ -10,7 +10,11 @@ The starter used the Neon HTTP driver. Local development uses Docker Compose Pos
 
 ## 2026-10-16 — Redis is provisioned and unused in Phase 0
 
-Compose starts Redis so later workers have a broker. No queue workers are implemented in this phase. TODO(phase-1): BullMQ workers.
+Compose starts Redis so later workers have a broker. No queue workers are implemented in this phase.
+
+## 2026-10-16 — Runs are queued in process and in BullMQ
+
+The request path uses an in-process pool with a per-student limit so `bun run dev` can run code without a second process. `bun run worker` starts a BullMQ worker on Redis that calls the same `SandboxRunner`. Student code is still executed only inside the container.
 
 ## 2026-10-16 — One user table, extended for role and institute
 
