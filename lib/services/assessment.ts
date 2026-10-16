@@ -212,6 +212,8 @@ export async function submitSession(
   let mastery: { conceptId: string; before: number; after: number }[] = [];
   if (session.mode === "graded") {
     mastery = await applyMastery(actor.id, session.instituteId, session.questionId, correct);
+    const { persistSessionSignals } = await import("@/lib/services/integrity");
+    await persistSessionSignals(session.id);
   }
 
   return { ...summary, correct, mastery };

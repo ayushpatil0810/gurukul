@@ -22,6 +22,13 @@
       "when": 1792171414141,
       "tag": "0002_strong_onslaught",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792175469311,
+      "tag": "0003_aberrant_nomad",
+      "breakpoints": true
     }
   ]
 }

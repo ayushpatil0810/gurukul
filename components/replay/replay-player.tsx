@@ -32,6 +32,8 @@ export function ReplayPlayer({
   session,
   chainValid,
   events,
+  initialTimeMs = 0,
+  focus,
 }: {
   session: {
     id: string;
@@ -43,8 +45,10 @@ export function ReplayPlayer({
   };
   chainValid: boolean;
   events: ReplaySourceEvent[];
+  initialTimeMs?: number;
+  focus?: { fromT: number; toT: number } | null;
 }) {
-  const playback = useReplayPlayback(events);
+  const playback = useReplayPlayback(events, initialTimeMs);
   const regionRef = useRef<HTMLDivElement>(null);
   const actions = useRef(playback);
   useEffect(() => {
@@ -83,6 +87,17 @@ export function ReplayPlayer({
       className="space-y-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
       aria-label="Session replay"
     >
+      {focus ? (
+        <div role="status" className="rounded-lg border border-border bg-muted p-4">
+          <p className="font-medium">Evidence range</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Opened at {formatReplayTime(focus.fromT)}
+            {focus.toT !== focus.fromT ? ` through ${formatReplayTime(focus.toT)}` : ""}. This marks a review signal.
+            It is not a conclusion about the student.
+          </p>
+        </div>
+      ) : null}
+
       <section className="rounded-lg border border-border p-4">
         <p className="text-sm text-muted-foreground">
           {session.studentName} · {session.mode} · difficulty {session.questionDifficulty}

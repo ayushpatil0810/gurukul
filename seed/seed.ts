@@ -1,11 +1,12 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { batchMembers, batchTrainers, batches, concepts, events, institutes, learningSessions, masteryState, modules, questions, user } from "@/db/schema";
+import { batchMembers, batchTrainers, batches, concepts, consents, events, institutes, learningSessions, masteryState, modules, questions, user } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { parseRole } from "@/lib/auth-fields";
 import type { Actor } from "@/lib/auth/actor";
 import { addPrerequisite, createConcept, createModule } from "@/lib/services/concepts";
 import { planEventAppend } from "@/lib/engine/event-chain";
+import { persistSessionSignals } from "@/lib/services/integrity";
 import { nextQuestion } from "@/lib/services/assessment";
 import { createQuestion } from "@/lib/services/questions";
 import {
@@ -272,6 +273,14 @@ async function main() {
     });
     console.log("replay    /replay/demo-replay-valid");
     console.log("replay    /replay/demo-replay-incomplete");
+    await replaceReviewSession({
+      sessionId: "demo-review-paste",
+      instituteId,
+      studentId: adaId,
+      questionId: replayQuestion.id,
+    });
+    console.log("review    /review");
+    console.log("review    /replay/demo-review-paste");
   }
 
   for (const account of DEMO_USERS) {
@@ -318,11 +327,44 @@ function editorInsert(at: number, text: string) {
   };
 }
 
+async function replaceReviewSession(input: {
+  sessionId: string;
+  instituteId: string;
+  studentId: string;
+  questionId: string;
+}) {
+  await db.delete(learningSessions).where(eq(learningSessions.id, input.sessionId));
+  await db.delete(consents).where(eq(consents.id, "demo-review-consent"));
+  await db.insert(consents).values({
+    id: "demo-review-consent",
+    instituteId: input.instituteId,
+    studentId: input.studentId,
+    policyVersion: "demo-review",
+  });
+  const pasted = "n".repeat(180);
+  await replaceReplaySession({
+    sessionId: input.sessionId,
+    instituteId: input.instituteId,
+    studentId: input.studentId,
+    questionId: input.questionId,
+    mode: "graded",
+    consentId: "demo-review-consent",
+    events: [
+      { seq: 1, t: 0, type: "session_start", payload: { mode: "graded", baseline: "" } },
+      { seq: 2, t: 5000, type: "paste", payload: editorInsert(0, pasted) },
+      { seq: 3, t: 8000, type: "submit", payload: { language: "javascript" } },
+    ],
+  });
+  await persistSessionSignals(input.sessionId);
+}
+
 async function replaceReplaySession(input: {
   sessionId: string;
   instituteId: string;
   studentId: string;
   questionId: string;
+  mode?: "practice" | "graded";
+  consentId?: string;
   events: { seq: number; t: number; type: string; payload: Record<string, unknown> }[];
 }) {
   await db.delete(events).where(eq(events.sessionId, input.sessionId));
@@ -332,7 +374,8 @@ async function replaceReplaySession(input: {
     instituteId: input.instituteId,
     studentId: input.studentId,
     questionId: input.questionId,
-    mode: "practice",
+    mode: input.mode ?? "practice",
+    consentId: input.consentId,
   });
   const planned = planEventAppend([], input.events);
   if (planned.length === 0) return;

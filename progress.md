@@ -1,6 +1,6 @@
 # Progress
 
-Adaptive Learning and Assessment Portal for TechSummitTrainers. The working PRD is `prd.md`. The app is the existing Next.js project. Phase 0, Phase 1, the Phase 2 telemetry repair, and the trainer replay player are done. Integrity signals and the rest of Phase 2 are not.
+Adaptive Learning and Assessment Portal for TechSummitTrainers. The working PRD is `prd.md`. The app is the existing Next.js project. Phase 0, Phase 1, the Phase 2 telemetry repair, the trainer replay player, and integrity review are done. Explain-your-code and dashboards are not.
 
 ## How to run
 
@@ -97,9 +97,33 @@ Browser, signed in as `trainer@techsummit.example` on the already running dev se
 
 Not exercised in the browser: dragging the slider (automation exposed it as readonly even while its value tracked playback), Space and arrow keys on the replay region, and a signed-in student opening replay. Student and guessed-id refusal are covered by `tests/integration/replay-access.test.ts`.
 
+## Phase 2 — Integrity review
+
+Implemented and checked against `docs/PHASE2_INTEGRITY_REVIEW.md`.
+
+Graded sessions produce four review patterns from the stored event log: large paste, unusual typing burst, no write-run-fix iteration, and unusually uniform typing. The queue is `/review`. A signal opens the replay at its start time. Dismiss and needs viva can omit a note. Escalate requires one. Reviewer and time are set on the server, and each decision is appended. A later event that removes the pattern keeps the row and its reviews, and drops it from the queue. Students are refused. A gap does not become a pattern.
+
+Seeded recording after `.\make.cmd seed`: http://localhost:3000/replay/demo-review-paste
+
+Checked in this pass:
+
+- `bun run test` passed 31 files and 127 tests, including the four signal boundaries, insufficient evidence, gaps, ordinary edits, idempotent detection, late events, replay links, batch and institute access, student denial, server-set reviewer and time, review history, and unchanged mastery and pass rate.
+- `bun run lint` passed.
+- `bun run typecheck` passed.
+- `bun run build` passed on Next.js 16.4.2.
+- `bun run db:migrate` applied `0003_aberrant_nomad`. `bun run db:seed` wrote the demo review session.
+
+Browser, signed in as `trainer@techsummit.example` on the dev server at port 3000:
+
+- `/review` listed Ada's large paste (high, pending, 0:05.0) above the no-run pattern (medium, 0:08.0), with batch, pattern, and status filters.
+- The large-paste page showed the measured counts, the clipboard context, and dismiss / needs viva / escalate. No decision was saved, so the seeded item stays pending.
+- Opening `/replay/demo-review-paste?t=5000&from=5000&to=5000` showed the evidence-range notice, the slider at 5000, and the paste event selected.
+
+Clicks on the queue and the replay link did not navigate during automation; a hydration overlay was present. The same URLs opened correctly with direct navigation.
+
 ## Not started
 
-The rest of Phase 2: integrity signals, the review workflow, explain-your-code, and dashboards. Periodic snapshots and trainer notes from the PRD are not built. A keepalive batch that never reached the server still cannot be replayed.
+The rest of Phase 2: explain-your-code and dashboards. Per-batch threshold tuning and student-visible signals stay P1. Periodic snapshots and trainer notes from the PRD are not built. A keepalive batch that never reached the server still cannot be replayed.
 
 Phase 3: CI hardening beyond the current red-team run, the demo seed in PRD 13.1, remaining P1 items, accessibility, the README, and the PRD 13.2 pass/fail report.
 

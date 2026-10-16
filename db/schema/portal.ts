@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   doublePrecision,
   index,
@@ -458,25 +459,61 @@ export const signals = pgTable(
     sessionId: text("session_id")
       .notNull()
       .references(() => learningSessions.id, { onDelete: "cascade" }),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     type: text("type").notNull(),
     strength: text("strength").notNull(),
     confidence: doublePrecision("confidence").notNull(),
     tStart: doublePrecision("t_start").notNull(),
     tEnd: doublePrecision("t_end").notNull(),
-    metricsJson: jsonb("metrics_json").notNull(),
+    seqStart: integer("seq_start").notNull(),
+    seqEnd: integer("seq_end").notNull(),
+    metricsJson: jsonb("metrics_json").$type<Record<string, unknown>>().notNull(),
     explanation: text("explanation").notNull(),
-    contextJson: jsonb("context_json").notNull().default([]),
+    contextJson: jsonb("context_json").$type<string[]>().notNull().default([]),
+    evidenceJson: jsonb("evidence_json").$type<number[]>().notNull().default([]),
+    limitationsJson: jsonb("limitations_json").$type<string[]>().notNull().default([]),
+    ruleVersion: text("rule_version").notNull(),
+    dedupeKey: text("dedupe_key").notNull(),
+    reviewStatus: text("review_status").notNull().default("pending"),
+    supported: boolean("supported").notNull().default(true),
     createdAt: createdAtColumn(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
   },
   (table) => [
+    uniqueIndex("signals_session_dedupe_unique").on(table.sessionId, table.dedupeKey),
     index("signals_session_id_idx").on(table.sessionId),
+    index("signals_student_id_idx").on(table.studentId),
     index("signals_institute_id_idx").on(table.instituteId),
+    index("signals_review_status_idx").on(table.reviewStatus),
     check(
       "signals_type_check",
       sql`${table.type} IN ('large_paste', 'faster_than_rhythm', 'no_write_run_fix', 'evenly_typed', 'explanation_mismatch')`,
     ),
     check("signals_strength_check", sql`${table.strength} IN ('low', 'medium', 'high')`),
+    check(
+      "signals_review_status_check",
+      sql`${table.reviewStatus} IN ('pending', 'dismissed', 'needs_viva', 'escalated')`,
+    ),
   ],
+);
+
+export const integrityRuns = pgTable(
+  "integrity_runs",
+  {
+    sessionId: text("session_id")
+      .primaryKey()
+      .references(() => learningSessions.id, { onDelete: "cascade" }),
+    instituteId: instituteColumn(),
+    ruleVersion: text("rule_version").notNull(),
+    withheldJson: jsonb("withheld_json").$type<{ rule: string; reason: string }[]>().notNull().default([]),
+    analyzedAt: timestamp("analyzed_at").defaultNow().notNull(),
+  },
+  (table) => [index("integrity_runs_institute_id_idx").on(table.instituteId)],
 );
 
 export const reviews = pgTable(
@@ -499,9 +536,12 @@ export const reviews = pgTable(
     index("reviews_institute_id_idx").on(table.instituteId),
     check(
       "reviews_disposition_check",
-      sql`${table.disposition} IN ('dismissed', 'needs_viva', 'escalate')`,
+      sql`${table.disposition} IN ('dismissed', 'needs_viva', 'escalated')`,
     ),
-    check("reviews_note_not_blank", sql`char_length(trim(${table.note})) > 0`),
+    check(
+      "reviews_escalated_note",
+      sql`${table.disposition} <> 'escalated' OR char_length(trim(${table.note})) > 0`,
+    ),
   ],
 );
 

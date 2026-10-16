@@ -20,6 +20,7 @@ export function Navbar() {
     ...(role === "student" ? [{ href: "/practice", label: "Practice" }] : []),
     ...(role === "trainer" || role === "admin" ? [{ href: "/questions", label: "Questions" }] : []),
     ...(role === "trainer" || role === "admin" ? [{ href: "/replay", label: "Replay" }] : []),
+    ...(role === "trainer" || role === "admin" ? [{ href: "/review", label: "Review" }] : []),
   ];
 
   return (
@@ -40,7 +41,7 @@ export function Navbar() {
 
           <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
             {navLinks.map((link) => {
-              const isActive = pathname === link.href;
+              const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`));
               return (
                 <Link
                   key={link.href}

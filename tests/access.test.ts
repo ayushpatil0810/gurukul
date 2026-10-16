@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { forceStudentOnCreate, stripPrivilegedUserFields } from "@/lib/auth-fields";
-import { decideReplayRead, decideStudentRead, type AccessActor, type StudentRecord } from "@/lib/auth/access";
+import { decideReplayRead, decideReviewRead, decideStudentRead, type AccessActor, type StudentRecord } from "@/lib/auth/access";
 
 const institute = "inst-1";
 
@@ -115,6 +115,16 @@ describe("replay access", () => {
       "forbidden",
     );
     expect(decideReplayRead({ actor: actor({ id: "a1", role: "admin" }), session, sharesBatch: false })).toBe("allow");
+  });
+
+  it("uses the same boundary for review", () => {
+    expect(decideReviewRead({ actor: actor({ id: "s1", role: "student" }), session, sharesBatch: true })).toBe(
+      "forbidden",
+    );
+    expect(decideReviewRead({ actor: actor({ id: "t1", role: "trainer" }), session, sharesBatch: false })).toBe(
+      "forbidden",
+    );
+    expect(decideReviewRead({ actor: actor({ id: "a1", role: "admin" }), session, sharesBatch: false })).toBe("allow");
   });
 });
 

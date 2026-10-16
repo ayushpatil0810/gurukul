@@ -70,3 +70,12 @@ export function decideReplayRead(input: {
   if (actor.role === "trainer") return sharesBatch ? "allow" : "forbidden";
   return "forbidden";
 }
+
+/** Review uses the same institute and batch boundary as replay. Students are refused. */
+export function decideReviewRead(input: {
+  actor: AccessActor;
+  session: ReplaySessionRecord | null;
+  sharesBatch: boolean;
+}): AccessDecision {
+  return decideReplayRead(input);
+}

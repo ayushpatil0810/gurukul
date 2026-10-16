@@ -45,7 +45,7 @@ A data-quality note is described as missing telemetry. The page does not treat a
 
 ## What this does not do
 
-- It does not compute integrity signals or a cheating score.
+- Integrity signals that link into this player are described in `docs/PHASE2_INTEGRITY_REVIEW.md`. The player does not compute a score.
 - It does not ask the student to explain their code.
 - It does not change a grade, a mastery value, or a routing decision.
 - It does not store periodic snapshots. Each frame is rebuilt from the baseline and the editor events up to that point.

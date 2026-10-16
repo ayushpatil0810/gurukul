@@ -1,6 +1,6 @@
 # Phase 2 — Telemetry
 
-Editor events can be replayed from the log, and an acknowledgement cannot drop a newer event that was still waiting. Replay, integrity signals, and explain-your-code are not part of this change.
+Editor events can be replayed from the log, and an acknowledgement cannot drop a newer event that was still waiting. Integrity review is described in `docs/PHASE2_INTEGRITY_REVIEW.md`. Explain-your-code is not part of this change.
 
 ## Event envelope
 
@@ -90,6 +90,6 @@ WebSocket ingest and `POST /api/sessions/:id/events` use the same event schema, 
 ## What this does not do
 
 - Trainer replay of this log is described in `docs/PHASE2_REPLAY.md`.
-- It does not raise integrity signals or decide misconduct.
+- Integrity review of this log is described in `docs/PHASE2_INTEGRITY_REVIEW.md`. This ingest path still does not decide misconduct.
 - It does not record keystrokes that happened before graded consent. The baseline at recording start includes the editor as it was then.
 - It does not retry an unacknowledged batch after the tab is destroyed if the final keepalive request fails. That batch remains under its session key in `localStorage`.

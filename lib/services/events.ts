@@ -53,7 +53,7 @@ export async function appendEvents(actor: Actor, sessionId: string, incoming: In
   }
 
   const receivedAt = new Date();
-  return db.transaction(async (tx) => {
+  const appended = await db.transaction(async (tx) => {
     await tx.execute(sql`select id from learning_sessions where id = ${sessionId} for update`);
     const existing = await readEvents(tx, sessionId);
     const planned = planEventAppend(
@@ -90,6 +90,14 @@ export async function appendEvents(actor: Actor, sessionId: string, incoming: In
       acked: seqsToAcknowledge(stored, incoming.map((event) => event.seq)),
     };
   });
+  await refreshGradedSignals(session);
+  return appended;
+}
+
+async function refreshGradedSignals(session: { id: string; mode: string }) {
+  if (session.mode !== "graded") return;
+  const { persistSessionSignals } = await import("@/lib/services/integrity");
+  await persistSessionSignals(session.id);
 }
 
 export async function listEvents(actor: Actor, sessionId: string): Promise<StoredEvent[]> {

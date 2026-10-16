@@ -16,14 +16,16 @@ import {
   type ReplayTimeline,
 } from "@/lib/engine/replay-timeline";
 
-export function useReplayPlayback(events: readonly ReplaySourceEvent[]) {
+export function useReplayPlayback(events: readonly ReplaySourceEvent[], initialTimeMs = 0) {
   const timeline = useMemo(() => buildReplayTimeline(events), [events]);
-  const [frameIndex, setFrameIndex] = useState(-1);
-  const [timeMs, setTimeMs] = useState(0);
+  const startTime = Math.max(0, Math.min(timeline.durationMs, Number.isFinite(initialTimeMs) ? initialTimeMs : 0));
+  const startIndex = frameIndexAtTime(timeline.frames, startTime);
+  const [frameIndex, setFrameIndex] = useState(startIndex);
+  const [timeMs, setTimeMs] = useState(startTime);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<ReplaySpeed>(1);
-  const timeRef = useRef(0);
-  const indexRef = useRef(-1);
+  const timeRef = useRef(startTime);
+  const indexRef = useRef(startIndex);
 
   function commit(index: number, time: number) {
     indexRef.current = index;
