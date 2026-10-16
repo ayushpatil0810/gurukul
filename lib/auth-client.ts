@@ -1,12 +1,14 @@
 import { createAuthClient } from "better-auth/react";
+import { inferAdditionalFields } from "better-auth/client/plugins";
+import { portalUserFields } from "@/lib/auth-fields";
 
 /**
- * Client-side Better Auth SDK
- *
- * Provides reactive React hooks (`useSession`) and authentication methods
- * (`signIn`, `signUp`, `signOut`, `getSession`) for client components.
+ * Client-side Better Auth SDK.
+ * Role and institute are displayed from the session, then enforced again on the server.
  */
-export const authClient = createAuthClient();
+export const authClient = createAuthClient({
+  plugins: [inferAdditionalFields({ user: portalUserFields })],
+});
 
 export const {
   signIn,

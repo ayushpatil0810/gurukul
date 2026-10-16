@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { db, schema } from "@/db";
+import { forceStudentOnCreate, portalUserFields, stripPrivilegedUserFields } from "@/lib/auth-fields";
 import { env } from "@/lib/env";
 
 /**
@@ -20,6 +21,23 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
+  },
+  user: {
+    additionalFields: portalUserFields,
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (created) => ({
+          data: forceStudentOnCreate(created),
+        }),
+      },
+      update: {
+        before: async (updated) => ({
+          data: stripPrivilegedUserFields(updated),
+        }),
+      },
+    },
   },
   plugins: [
     nextCookies(),
