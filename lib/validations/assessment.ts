@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { submissionLanguages } from "@/db/schema";
+import { clientEventTypes } from "@/lib/services/events";
 
 export const startSessionSchema = z.object({
   questionId: z.string().trim().min(1),
@@ -9,4 +10,18 @@ export const startSessionSchema = z.object({
 export const codeSubmissionSchema = z.object({
   language: z.enum(submissionLanguages),
   code: z.string().max(64_000),
+});
+
+export const eventBatchSchema = z.object({
+  events: z
+    .array(
+      z.object({
+        seq: z.number().int().positive().max(1_000_000),
+        t: z.number().nonnegative(),
+        type: z.enum(clientEventTypes),
+        payload: z.record(z.string(), z.unknown()).default({}),
+      }),
+    )
+    .min(1)
+    .max(100),
 });

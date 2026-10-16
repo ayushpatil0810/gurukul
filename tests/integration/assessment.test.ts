@@ -6,7 +6,9 @@ import type { Actor } from "@/lib/auth/actor";
 import { addPrerequisite, createConcept, createModule } from "@/lib/services/concepts";
 import { createQuestion } from "@/lib/services/questions";
 import { bktUpdate } from "@/lib/engine/bkt";
+import { hashEvent } from "@/lib/engine/event-chain";
 import { nextQuestion, runSession, startSession, submitSession } from "@/lib/services/assessment";
+import { appendEvents, listEvents } from "@/lib/services/events";
 import { RunQueue } from "@/sandbox/queue";
 import type { SandboxRunner } from "@/sandbox/types";
 
@@ -150,5 +152,19 @@ describe("assessment services", () => {
     expect(JSON.stringify(gradedSubmit)).not.toContain(secret);
     expect(gradedSubmit.mastery[0]?.before).toBeCloseTo(0.3, 6);
     expect(gradedSubmit.mastery[0]?.after).toBeCloseTo(bktUpdate(0.3, true), 10);
+
+    const timeline = await appendEvents(ada, practice.id, [
+      { seq: 1, t: 0, type: "session_start", payload: {} },
+      { seq: 2, t: 8, type: "insert", payload: { length: 1 } },
+    ]);
+    const withGap = await appendEvents(ada, practice.id, [
+      { seq: 4, t: 40, type: "paste", payload: { length: 12 } },
+    ]);
+    expect(withGap.map((event) => event.seq)).toEqual([1, 2, 3, 4]);
+    expect(withGap[2]?.type).toBe("data_quality");
+    expect(withGap[3]?.prevHash).toBe(hashEvent(withGap[2]!));
+    expect(timeline).toHaveLength(2);
+    expect(await listEvents(ada, practice.id)).toEqual(withGap);
+    await expect(listEvents(ben, practice.id)).rejects.toMatchObject({ statusCode: 403 });
   });
 });

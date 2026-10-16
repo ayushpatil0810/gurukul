@@ -17,6 +17,7 @@ export function Navbar() {
   const navLinks = [
     { href: "/", label: "Home" },
     ...(session?.user ? [{ href: "/curriculum", label: "Concept map" }] : []),
+    ...(role === "student" ? [{ href: "/practice", label: "Practice" }] : []),
     ...(role === "trainer" || role === "admin" ? [{ href: "/questions", label: "Questions" }] : []),
   ];
 

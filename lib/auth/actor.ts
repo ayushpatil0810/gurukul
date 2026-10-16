@@ -17,10 +17,7 @@ export type Actor = {
  * Loads role and institute from the database for the signed-in user.
  * Request bodies are never a source for either value.
  */
-export async function getActor(): Promise<Actor | null> {
-  const session = await getServerSession();
-  if (!session?.user) return null;
-
+export async function actorFromUserId(userId: string): Promise<Actor | null> {
   const [row] = await db
     .select({
       id: user.id,
@@ -30,7 +27,7 @@ export async function getActor(): Promise<Actor | null> {
       instituteId: user.instituteId,
     })
     .from(user)
-    .where(eq(user.id, session.user.id))
+    .where(eq(user.id, userId))
     .limit(1);
 
   if (!row) return null;
@@ -42,6 +39,12 @@ export async function getActor(): Promise<Actor | null> {
     role: parseRole(row.role),
     instituteId: row.instituteId,
   };
+}
+
+export async function getActor(): Promise<Actor | null> {
+  const session = await getServerSession();
+  if (!session?.user) return null;
+  return actorFromUserId(session.user.id);
 }
 
 export async function requireActor(): Promise<Actor> {
