@@ -6,7 +6,7 @@ The PRD recommends NestJS in the working copy and FastAPI in an earlier draft. T
 
 ## 2026-10-16 — PostgreSQL through node-postgres
 
-The starter used the Neon HTTP driver. Local development uses Docker Compose PostgreSQL, which the `pg` driver already in the repo can reach. `DATABASE_URL` remains the single connection setting.
+The starter used the Neon HTTP driver. Local development uses Docker Compose PostgreSQL, which the `pg` driver already in the repo can reach. `DATABASE_URL` remains the single connection setting. The host port is 5433 so Compose can start when another Postgres already owns 5432.
 
 ## 2026-10-16 — Redis is provisioned and unused in Phase 0
 
