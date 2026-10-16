@@ -1,0 +1,20 @@
+import { NextResponse } from "next/server";
+import { requireActor } from "@/lib/auth/actor";
+import { apiErrorResponse } from "@/lib/errors";
+import { answerExplanation } from "@/lib/services/explain";
+import { explainAnswersSchema } from "@/lib/validations/assessment";
+import { assertValidInput } from "@/lib/validations/validate";
+
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function POST(request: Request, context: RouteContext) {
+  try {
+    const actor = await requireActor();
+    const { id } = await context.params;
+    const input = assertValidInput(explainAnswersSchema, await request.json());
+    const result = await answerExplanation(actor, id, input.answers);
+    return NextResponse.json({ success: true, data: result });
+  } catch (error) {
+    return apiErrorResponse(error);
+  }
+}

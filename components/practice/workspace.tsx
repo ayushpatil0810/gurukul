@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { OnMount } from "@monaco-editor/react";
 import { Button } from "@/components/ui/button";
+import { ExplainStep } from "@/components/practice/explain-step";
 import { SessionRecorder } from "@/components/practice/recorder";
 import { classifyModelChanges } from "@/lib/engine/editor-events";
 import { openRecording } from "@/lib/engine/session-clock";
@@ -50,6 +51,7 @@ type SubmitResult = {
   passed: number;
   total: number;
   correct: boolean;
+  attemptId: string | null;
   tests: { id: string; passed: boolean; category: string; message: string }[];
   mastery: { before: number; after: number }[];
 };
@@ -385,6 +387,7 @@ export function PracticeWorkspace({
                   resetCapture(documentText.current);
                   setMode(nextMode);
                   setSession(null);
+                  setSubmitResult(null);
                 }}
               >
                 <option value="practice">Practice</option>
@@ -482,6 +485,8 @@ export function PracticeWorkspace({
           ))}
         </section>
       ) : null}
+
+      {mode === "graded" && submitResult?.attemptId ? <ExplainStep attemptId={submitResult.attemptId} /> : null}
     </div>
   );
 }

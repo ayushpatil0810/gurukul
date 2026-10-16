@@ -6,6 +6,7 @@ import { getActor } from "@/lib/auth/actor";
 import { AppError } from "@/lib/errors";
 import { readReplay, type ReplayView } from "@/lib/services/replay";
 import { listReviewQueue } from "@/lib/services/integrity";
+import { listSessionExplanations } from "@/lib/services/explain";
 import { CheckRecording } from "@/components/review/check-recording";
 import { ReplayPlayer } from "@/components/replay/replay-player";
 
@@ -46,9 +47,54 @@ async function ReplayScreen({
     actor.role === "student"
       ? []
       : await listReviewQueue(actor, { sessionId });
+  const explanations = actor.role === "student" ? [] : await listSessionExplanations(actor, sessionId);
   return (
     <div className="space-y-4">
       {actor.role === "trainer" || actor.role === "admin" ? <CheckRecording sessionId={sessionId} /> : null}
+      {explanations.length > 0 ? (
+        <section className="rounded-lg border border-border p-4">
+          <h2 className="font-medium">Explain your code</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            These answers are stored separately from the hidden-test score and from review signals.
+          </p>
+          <div className="mt-4 space-y-6">
+            {explanations.map((set) => (
+              <article key={set.id} className="space-y-3 text-sm">
+                <p>
+                  Submission {set.attemptId} · {set.language} · {set.status}
+                </p>
+                {set.note ? <p>{set.note}</p> : null}
+                <pre className="overflow-auto rounded-md border border-border p-3">{set.codeSnapshot}</pre>
+                <ol className="space-y-3">
+                  {set.questions.map((question) => (
+                    <li key={question.id}>
+                      <p className="font-medium">{question.prompt}</p>
+                      <p className="text-muted-foreground">
+                        Lines {question.startLine}–{question.endLine}: {question.quote}
+                      </p>
+                      <p>Answer: {question.answer ?? "Not answered yet"}</p>
+                      {set.status === "answered" ? (
+                        <p>
+                          {question.verdictLabel ?? "Not enough evidence"}
+                          {question.reviewStatus === "needs_review" ? " · Needs review" : ""}
+                          {question.method ? ` · ${question.method}` : ""}
+                          {question.confidence !== null ? ` · confidence ${question.confidence}` : ""}
+                        </p>
+                      ) : null}
+                      {question.evidence.map((item) => (
+                        <p key={item}>{item}</p>
+                      ))}
+                      {question.missed.map((item) => (
+                        <p key={item}>{item}</p>
+                      ))}
+                    </li>
+                  ))}
+                </ol>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
       {signals.length > 0 ? (
         <section className="rounded-lg border border-border p-4">
           <h2 className="font-medium">Review signals in this recording</h2>

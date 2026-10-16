@@ -1,6 +1,6 @@
 # Progress
 
-Adaptive Learning and Assessment Portal for TechSummitTrainers. The working PRD is `prd.md`. The app is the existing Next.js project. Phase 0, Phase 1, the Phase 2 telemetry repair, the trainer replay player, and integrity review are done. Explain-your-code and dashboards are not.
+Adaptive Learning and Assessment Portal for TechSummitTrainers. The working PRD is `prd.md`. The app is the existing Next.js project. Phase 0, Phase 1, the Phase 2 telemetry, replay, integrity review, and explain-your-code steps, and the Phase 3 student and trainer dashboards are done.
 
 ## How to run
 
@@ -121,17 +121,74 @@ Browser, signed in as `trainer@techsummit.example` on the dev server at port 300
 
 Clicks on the queue and the replay link did not navigate during automation; a hydration overlay was present. The same URLs opened correctly with direct navigation.
 
+## Phase 2 — Explain your code
+
+Implemented and checked against `docs/PHASE2_EXPLAIN_CODE.md`.
+
+A graded submission can be followed by two or three questions about that submission. Practice does not show the step. The questions cite a line in the submitted code or a sandbox run of it. There is one explanation set per attempt, and it keeps a copy of the code from the moment the questions were created. Answering twice keeps the first verdicts.
+
+No model is installed, so none is called. A reasoning answer is scored from the name and literal on the cited line. If a line has nothing to check, the verdict is empty and the row needs review. An incorrect explanation does not change the hidden-test score, mastery, or an integrity signal. The PRD calls explanation results lower-weight mastery evidence and does not give a weight, so this step does not invent one.
+
+Checked in this pass:
+
+- `bun run test` passed 33 files and 133 tests, including grounded generation, the safe fallback, JavaScript, Java, and C++, correct, partial, incorrect, and insufficient answers, the immutable snapshot, duplicate creation, a second answer, hidden-test and reference-solution confidentiality, and student, trainer, and institute access.
+- `bun run lint` passed.
+- `bun run typecheck` passed.
+- `bun run build` passed on Next.js 16.4.2.
+- `bun run db:migrate` applied `drizzle/0004_explain_code.sql`.
+
+Browser, on the dev server at port 3000:
+
+- Signed in as `ada@techsummit.example`, switched practice to Graded, and submitted the factorial starter. The page showed three questions about that code, including what `factorial(2)` returns, with the cited lines.
+- The answers were recorded. `2` was incorrect because that function returned 0. `factorial` and `console` were correct. The page said the answers were recorded.
+- Ada opening `/replay/87aa8a56-0d0f-45a8-a1e8-902c35cbab7d` was told she does not have access.
+- Signed in as `trainer@techsummit.example`, that replay showed the submitted code, the three questions, the original answers, the verdicts, the evidence, the method, and the confidence.
+
+That graded submit failed the hidden test, so Functions mastery moved from 0.30 to 0.19, and the existing no-run review signal was stored. The explanation did not make either change. Reseed if you want the demo mastery back.
+
+A Next.js hydration badge was open on the practice page. Submit could be clicked after the badge was collapsed.
+
+## Phase 3 — Student and trainer dashboards
+
+Implemented and checked against `docs/PHASE3_DASHBOARDS.md`.
+
+`/dashboard` is the signed-in student’s own mastery, or a trainer or admin batch heatmap. `/dashboard/students/:id` is the trainer or admin drill-down. Mastery is the stored `mastery_state.p_know` value. A missing row stays “Not recorded” and is not shown as 0 or as the selector’s 0.20 start. The only band cutoff is the module threshold (seeded 0.80). The next step calls `previewRoute`, which does not insert a routing decision. Explanation verdicts stay in their own column. Students do not get replay links. No schema change and no new API route.
+
+Checked in this pass:
+
+- `bun run test` passed 35 files and 137 tests, including dashboard bands and the dashboard access integration test. An earlier run of those two files alone passed 4 tests. The full suite was 33 files and 133 tests before this step.
+- `bun run lint` passed after the dashboard pages stopped returning JSX from inside `try/catch`.
+- `bun run typecheck` passed.
+- `bun run build` passed on Next.js 16.4.2. New routes: `/dashboard` and `/dashboard/students/[id]`.
+- No migration was added. `bun run db:migrate` and `bun run db:seed` were not run. Existing rows were left in place.
+
+Browser, on the dev server already listening at port 3000:
+
+- Signed in as `trainer@techsummit.example`. October 2026 showed Ada Variables solid 90% (0.90) and Functions below threshold 19% (0.19); Ben Variables 95% (0.95), Functions 90% (0.90), Classes and Objects 35% (0.35); Cara not recorded on every concept. Inheritance and Dependency Injection had no stored mastery and the page said they are not treated as zero.
+- The cohort table listed Functions at 55% (0.55), 2 of 3 stored, 1 of 2 below the threshold, 1 student blocking a later concept, and Classes and Objects at 35% (0.35), 1 of 3 stored, 1 of 1 below, 1 blocking. Population was the students enrolled in October 2026.
+- The review section said 3 pending patterns do not change a grade or mastery, and linked to `/review`. Graded rows linked to replay.
+- Ada’s drill-down showed the selector reason, stored 19% (0.19) separate from the predicted 30% (0.30), the graded move from 0.30 to 0.19, factorial hidden tests 0/1 with explanation “2 correct, 1 incorrect”, and the minimum question 0/1 with “No explanation”. Those question titles linked to replay.
+- Signed in as `ada@techsummit.example`. Her dashboard showed the same own records, a Practice link, and no replay link. Ben and Cara were not on the page.
+- Opening Ben’s `/dashboard/students/:id` showed “You can only access your own data”. Opening `/replay/87aa8a56-0d0f-45a8-a1e8-902c35cbab7d` showed “You do not have access to this recording”.
+- At a 390px width the page itself did not overflow. The concept and submission tables scrolled inside their own regions. The nav links stay hidden below the existing `md` breakpoint.
+
+Not exercised in the browser: an admin account, an empty batch, Cara’s own dashboard, and keyboard-only traversal of the heatmap. Batch, institute, empty-batch, and missing-mastery cases are in `tests/integration/dashboard-access.test.ts`.
+
+Ada’s Functions value is 0.19 because the earlier graded factorial submit failed the hidden test. The dashboard did not change it. Reseed if you want the demo mastery back at 0.30.
+
 ## Not started
 
-The rest of Phase 2: explain-your-code and dashboards. Per-batch threshold tuning and student-visible signals stay P1. Periodic snapshots and trainer notes from the PRD are not built. A keepalive batch that never reached the server still cannot be replayed.
+Per-batch threshold tuning and student-visible signals stay P1. Periodic snapshots and trainer notes from the PRD are not built. A keepalive batch that never reached the server still cannot be replayed.
 
-Phase 3: CI hardening beyond the current red-team run, the demo seed in PRD 13.1, remaining P1 items, accessibility, the README, and the PRD 13.2 pass/fail report.
+Still out of this milestone: mastery trend charts (SD-4, P1), CSV export (TD-5, P1), module and date filters (TD-6, P1), and the institute summary (AD-1 and AD-2, P2). Explanation results are stored and are not applied to mastery. AE-5 does not give a numeric weight.
+
+Phase 3 remaining: CI hardening beyond the current red-team run, the demo seed in PRD 13.1, the README, and the PRD 13.2 pass/fail report.
 
 ## Deferred inside the finished phases
 
 - Question edit and delete exist as APIs. The trainer UI is a list plus create.
 - A question tagged with several concepts gets the same observation on each tag. The PRD’s weighted split (AE-3) is P1.
 - The selector may repeat a question after that concept’s unattempted bank is empty. Refusing repeats until then (NQ-5) is P1.
-- Explain-your-code evidence (AE-5) waits for Phase 2.
+- Explanation results are stored and are not applied to mastery. AE-5 does not give a numeric weight.
 
 Choices that are easy to miss later are in `docs/DECISIONS.md`.

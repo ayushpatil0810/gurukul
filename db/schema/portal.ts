@@ -545,6 +545,44 @@ export const reviews = pgTable(
   ],
 );
 
+export type ExplainCodeRef = { startLine: number; endLine: number; quote: string };
+
+export type ExplainGrader = {
+  method: "sandbox" | "facts";
+  expected: string | null;
+  tokens: string[];
+  literal: string | null;
+};
+
+export const explainSets = pgTable(
+  "explain_sets",
+  {
+    id: idColumn(),
+    instituteId: instituteColumn(),
+    attemptId: text("attempt_id")
+      .notNull()
+      .references(() => attempts.id, { onDelete: "cascade" }),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => learningSessions.id, { onDelete: "cascade" }),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    language: text("language").notNull(),
+    codeSnapshot: text("code_snapshot").notNull(),
+    status: text("status").notNull().default("open"),
+    note: text("note"),
+    createdAt: createdAtColumn(),
+    answeredAt: timestamp("answered_at"),
+  },
+  (table) => [
+    uniqueIndex("explain_sets_attempt_id_unique").on(table.attemptId),
+    index("explain_sets_session_id_idx").on(table.sessionId),
+    index("explain_sets_institute_id_idx").on(table.instituteId),
+    check("explain_sets_status_check", sql`${table.status} IN ('open', 'answered', 'unavailable')`),
+  ],
+);
+
 export const explainQa = pgTable(
   "explain_qa",
   {
@@ -555,10 +593,16 @@ export const explainQa = pgTable(
       .references(() => attempts.id, { onDelete: "cascade" }),
     questionText: text("question_text").notNull(),
     type: text("type").notNull(),
-    codeRefs: jsonb("code_refs").notNull().default([]),
+    codeRefs: jsonb("code_refs").$type<ExplainCodeRef[]>().notNull().default([]),
     answerText: text("answer_text"),
     verdict: text("verdict"),
-    evidenceJson: jsonb("evidence_json"),
+    evidenceJson: jsonb("evidence_json").$type<string[] | null>(),
+    missedPoints: jsonb("missed_points").$type<string[]>().notNull().default([]),
+    method: text("method"),
+    confidence: doublePrecision("confidence"),
+    reviewStatus: text("review_status").notNull().default("none"),
+    graderJson: jsonb("grader_json").$type<ExplainGrader | null>(),
+    answeredAt: timestamp("answered_at"),
     overruledBy: text("overruled_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: createdAtColumn(),
   },
@@ -568,6 +612,15 @@ export const explainQa = pgTable(
     check(
       "explain_qa_verdict_check",
       sql`${table.verdict} IS NULL OR ${table.verdict} IN ('yes', 'partial', 'no')`,
+    ),
+    check(
+      "explain_qa_type_check",
+      sql`${table.type} IN ('trace', 'edge', 'reasoning', 'mutation')`,
+    ),
+    check("explain_qa_review_status_check", sql`${table.reviewStatus} IN ('none', 'needs_review')`),
+    check(
+      "explain_qa_method_check",
+      sql`${table.method} IS NULL OR ${table.method} IN ('sandbox', 'facts', 'none')`,
     ),
   ],
 );

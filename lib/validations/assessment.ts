@@ -12,6 +12,18 @@ export const codeSubmissionSchema = z.object({
   code: z.string().max(64_000),
 });
 
+export const explainAnswersSchema = z.object({
+  answers: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(80),
+        text: z.string().max(2_000),
+      }),
+    )
+    .min(1)
+    .max(3),
+});
+
 export const eventBatchSchema = z.object({
   events: z
     .array(

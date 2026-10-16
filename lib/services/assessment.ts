@@ -198,16 +198,19 @@ export async function submitSession(
   const summary = toHiddenResults(graded);
   const correct = attemptIsCorrect(summary.passRate, PASS_THRESHOLD);
 
-  await db.insert(attempts).values({
-    instituteId: session.instituteId,
-    sessionId,
-    kind: "submit",
-    language: input.language,
-    code: input.code,
-    resultJson: summary,
-    passRate: summary.passRate,
-    sandboxLog: summary.tests.map((test) => `${test.category}: ${test.message}`).join("\n"),
-  });
+  const [attempt] = await db
+    .insert(attempts)
+    .values({
+      instituteId: session.instituteId,
+      sessionId,
+      kind: "submit",
+      language: input.language,
+      code: input.code,
+      resultJson: summary,
+      passRate: summary.passRate,
+      sandboxLog: summary.tests.map((test) => `${test.category}: ${test.message}`).join("\n"),
+    })
+    .returning({ id: attempts.id });
 
   let mastery: { conceptId: string; before: number; after: number }[] = [];
   if (session.mode === "graded") {
@@ -216,7 +219,7 @@ export async function submitSession(
     await persistSessionSignals(session.id);
   }
 
-  return { ...summary, correct, mastery };
+  return { ...summary, correct, mastery, attemptId: attempt?.id ?? null };
 }
 
 async function applyMastery(studentId: string, instituteId: string, questionId: string, correct: boolean) {
@@ -397,6 +400,13 @@ async function routeStudent(
     attemptedQuestionIds: attempted.map((row) => row.questionId),
     params: conceptRows[0]?.params ?? DEFAULT_BKT_PARAMS,
   });
+}
+
+/** The same selector as practice, without writing a routing decision. */
+export async function previewRoute(studentId: string, instituteId: string, moduleId?: string) {
+  const moduleRow = await loadModule(instituteId, moduleId);
+  const decision = await routeStudent(studentId, instituteId, moduleRow);
+  return { module: moduleRow, decision };
 }
 
 async function loadPublicQuestion(instituteId: string, questionId: string): Promise<PublicQuestion> {

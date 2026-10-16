@@ -39,6 +39,9 @@ async function HomeActions() {
   return (
     <div className="mt-6 flex flex-wrap gap-3">
       <Button asChild>
+        <Link href="/dashboard">Open dashboard</Link>
+      </Button>
+      <Button asChild variant="outline">
         <Link href="/curriculum">Open concept map</Link>
       </Button>
       {session.user.role === "trainer" || session.user.role === "admin" ? (
