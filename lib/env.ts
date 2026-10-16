@@ -14,6 +14,14 @@ export const serverEnvSchema = z.object({
   DATABASE_URL: z
     .string()
     .optional()
+    .transform((val) => (val && val.trim() !== "" ? val : undefined))
+    .refine(
+      (val) => !val || !val.includes("+"),
+      "DATABASE_URL must be a node-postgres URL such as postgresql://user:pass@host:5432/db"
+    ),
+  REDIS_URL: z
+    .string()
+    .optional()
     .transform((val) => (val && val.trim() !== "" ? val : undefined)),
   BETTER_AUTH_SECRET: z
     .string()

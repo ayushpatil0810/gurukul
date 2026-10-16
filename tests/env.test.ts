@@ -18,6 +18,13 @@ describe("Environment Validation Schema", () => {
     }
   });
 
+  it("rejects SQLAlchemy-style database URLs", () => {
+    const parsed = serverEnvSchema.safeParse({
+      DATABASE_URL: "postgresql+psycopg://portal:portal@localhost:5432/portal",
+    });
+    expect(parsed.success).toBe(false);
+  });
+
   it("rejects secrets shorter than 32 characters", () => {
     const invalidEnv = {
       NODE_ENV: "development",

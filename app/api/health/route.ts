@@ -1,8 +1,10 @@
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { checkDatabaseConnection } from "@/db";
 import { env } from "@/lib/env";
 
 export async function GET() {
+  await headers();
   const dbHealth = await checkDatabaseConnection();
 
   const responsePayload = {

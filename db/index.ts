@@ -1,46 +1,50 @@
-import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-import { drizzle, type NeonHttpDatabase } from "drizzle-orm/neon-http";
+import { Pool } from "pg";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "./schema";
 
 /**
- * Reusable Drizzle database client configured for Neon PostgreSQL.
- *
- * Uses @neondatabase/serverless HTTP query driver for zero-cold-start,
- * connection-pooling-free queries in serverless Next.js App Router environments.
+ * Drizzle client for Docker Compose PostgreSQL via node-postgres.
+ * Importing this module does not open a connection. Queries do.
  */
 
-function createDbClient(): NeonHttpDatabase<typeof schema> {
-  const connectionString = process.env.DATABASE_URL;
-
-  if (!connectionString) {
-    // Return a safe placeholder client during build/test phase when DATABASE_URL is not set
-    const fallbackExecutor: NeonQueryFunction<boolean, boolean> = (() => {
-      throw new Error(
-        "DATABASE_URL is not configured. Please set a valid Neon connection string in your .env file."
-      );
-    }) as unknown as NeonQueryFunction<boolean, boolean>;
-
-    return drizzle(fallbackExecutor, { schema });
-  }
-
-  const sql = neon(connectionString);
-  return drizzle(sql, { schema });
-}
-
-// Global caching in development to prevent duplicate instances across Next.js hot reloads
 const globalForDb = globalThis as unknown as {
-  drizzleDb?: NeonHttpDatabase<typeof schema>;
+  drizzleDb?: NodePgDatabase<typeof schema>;
+  drizzlePool?: Pool;
 };
 
-export const db = globalForDb.drizzleDb ?? createDbClient();
+function createPool(connectionString: string): Pool {
+  return new Pool({
+    connectionString,
+    max: 10,
+  });
+}
+
+function createDb(): { db: NodePgDatabase<typeof schema>; pool: Pool } {
+  const connectionString = process.env.DATABASE_URL;
+  const pool = connectionString
+    ? createPool(connectionString)
+    : createPool("postgresql://portal:portal@127.0.0.1:1/portal");
+  return { db: drizzle(pool, { schema }), pool };
+}
+
+const created = globalForDb.drizzleDb
+  ? { db: globalForDb.drizzleDb, pool: globalForDb.drizzlePool! }
+  : createDb();
+
+export const db = created.db;
+export const pool = created.pool;
 
 if (process.env.NODE_ENV !== "production") {
   globalForDb.drizzleDb = db;
+  globalForDb.drizzlePool = pool;
+}
+
+export async function closeDatabase(): Promise<void> {
+  await pool.end();
 }
 
 /**
- * Utility to verify Neon database connectivity without crashing the app.
- * Useful for healthcheck endpoints and diagnostic scripts.
+ * Verifies PostgreSQL connectivity without crashing the app on import.
  */
 export async function checkDatabaseConnection(): Promise<{
   ok: boolean;
@@ -53,15 +57,18 @@ export async function checkDatabaseConnection(): Promise<{
   }
 
   const start = Date.now();
+  const probe = createPool(connectionString);
   try {
-    const sql = neon(connectionString);
-    await sql`SELECT 1`;
+    await probe.query("SELECT 1");
     return { ok: true, latencyMs: Date.now() - start };
   } catch (err) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : "Unknown database connection error",
-    };
+    const message = err instanceof Error ? err.message : "Unknown database connection error";
+    const redacted = connectionString
+      ? message.replaceAll(connectionString, "[redacted]")
+      : message;
+    return { ok: false, error: redacted };
+  } finally {
+    await probe.end();
   }
 }
 
