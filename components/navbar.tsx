@@ -13,10 +13,11 @@ export function Navbar() {
   const pathname = usePathname();
   const { data: session, isPending } = useSession();
 
+  const role = session?.user.role;
   const navLinks = [
-    { href: "/", label: "Overview" },
-    { href: "/protected", label: "Protected Area" },
-    { href: "/api/health", label: "API Health", external: true },
+    { href: "/", label: "Home" },
+    ...(session?.user ? [{ href: "/curriculum", label: "Concept map" }] : []),
+    ...(role === "trainer" || role === "admin" ? [{ href: "/questions", label: "Questions" }] : []),
   ];
 
   return (
@@ -27,10 +28,12 @@ export function Navbar() {
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
               ⚡
             </span>
-            <span>Hackathon Starter</span>
-            <Badge variant="outline" className="hidden sm:inline-flex text-[10px] uppercase font-mono">
-              Ready
-            </Badge>
+            <span>Adaptive Portal</span>
+            {role ? (
+              <Badge variant="outline" className="hidden sm:inline-flex text-[10px] uppercase font-mono">
+                {role}
+              </Badge>
+            ) : null}
           </Link>
 
           <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
@@ -40,7 +43,6 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  target={link.external ? "_blank" : undefined}
                   className={cn(
                     "px-3 py-1.5 rounded-md transition-colors",
                     isActive

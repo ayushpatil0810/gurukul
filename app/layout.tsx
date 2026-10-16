@@ -17,9 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hackathon Starter | Production-Ready Foundation",
+  title: "Adaptive Learning Portal",
   description:
-    "Feature-agnostic hackathon starter built with Next.js App Router, TypeScript, Better Auth, Drizzle ORM, Neon PostgreSQL, and Zod.",
+    "Concept maps, question banks, and role-based access for TechSummitTrainers.",
 };
 
 export default function RootLayout({
@@ -44,7 +44,7 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <footer className="border-t border-border/40 py-6 text-center text-xs text-muted-foreground">
           <p>
-            Hackathon Starter Foundation &bull; Next.js 16 &bull; Better Auth &bull; Drizzle ORM &bull; Neon PostgreSQL
+            TechSummitTrainers &bull; Adaptive Learning and Assessment Portal
           </p>
         </footer>
       </body>

@@ -14,7 +14,7 @@ interface SignUpFormProps {
   redirectTo?: string;
 }
 
-export function SignUpForm({ redirectTo = "/protected" }: SignUpFormProps) {
+export function SignUpForm({ redirectTo = "/" }: SignUpFormProps) {
   const router = useRouter();
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");

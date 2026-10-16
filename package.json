@@ -15,10 +15,12 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:up": "docker compose up -d --wait",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "db:seed": "bun ./seed/seed.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
+    "@xyflow/react": "^12.12.0",
     "better-auth": "^1.7.10",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",

@@ -14,7 +14,7 @@ interface SignInFormProps {
   redirectTo?: string;
 }
 
-export function SignInForm({ redirectTo = "/protected" }: SignInFormProps) {
+export function SignInForm({ redirectTo = "/" }: SignInFormProps) {
   const router = useRouter();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");

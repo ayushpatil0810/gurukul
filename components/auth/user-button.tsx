@@ -51,6 +51,7 @@ export function UserButton() {
             {session.user.name}
           </p>
           <p className="text-muted-foreground">{session.user.email}</p>
+          <p className="text-muted-foreground capitalize">{session.user.role}</p>
         </div>
       </div>
       <Button
