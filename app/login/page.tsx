@@ -3,8 +3,8 @@ import { type Metadata } from "next";
 import { LoginTabs } from "./login-tabs";
 
 export const metadata: Metadata = {
-  title: "Authentication | Hackathon Starter",
-  description: "Sign in or create an account with email and password",
+  title: "Sign in | Adaptive Learning Portal",
+  description: "Sign in with email and password",
 };
 
 export default function LoginPage() {
