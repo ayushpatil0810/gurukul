@@ -1,4 +1,4 @@
-# Gurukul — Adaptive Learning & Assessment Portal
+#  Gurukul — Adaptive Learning & Assessment Portal
 
 An adaptive coding education platform that personalises the learning path for each student using Bayesian Knowledge Tracing, evaluates process integrity through replayable session timelines, and runs untrusted code in isolated Docker sandboxes.
 
