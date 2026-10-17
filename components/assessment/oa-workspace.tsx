@@ -2,43 +2,49 @@
 
 /**
  * ============================================================================
- * ISOLATED ONLINE ASSESSMENT (OA) MODULE
+ * ONLINE ASSESSMENT (OA) WORKSPACE - LEETCODE IDENTICAL UI
  * ============================================================================
- * This module is completely isolated outside the Practice and Learn modules.
- * It provides the foundation for the serious, full-screen Online Assessment (OA)
- * environment with proctored telemetry, fullscreen enforcement, and test integrity.
- *
- * DO NOT MERGE OR COUPLE WITH PRACTICE OR LEARN MODULES.
+ * Provides an identical split-pane LeetCode layout to Practice Lab:
+ * - Left Pane: Problem Description (Statement, Examples, Constraints, Submissions)
+ * - Right Pane: Monaco Editor Panel + Console Panel (Testcase, Test Results)
+ * - Pre-Flight Check: Mid-screen verification ("yes" confirmation) before start
+ * - Automatic Fullscreen on confirmation
+ * - Silent Background Telemetry (integrity recorded for trainer review,
+ *   never shown as an alert/warning to the participant)
  * ============================================================================
  */
 
 import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import Link from "next/link";
 import type { OnMount } from "@monaco-editor/react";
 import {
-  AlertOctagon,
-  AlertTriangle,
+  ArrowLeft,
   CheckCircle2,
+  Clock,
+  Code2,
   Expand,
   FileCheck2,
   HelpCircle,
   Lock,
   Maximize2,
   Minimize2,
-  Radio,
-  ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Terminal,
-  Timer,
+  XCircle,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { ExplainStep } from "@/components/practice/explain-step";
+import { ProblemDescription } from "@/components/practice/problem-description";
+import { EditorPanel } from "@/components/practice/editor-panel";
+import {
+  ConsolePanel,
+  type SubmitTestResult,
+  type VisibleTestResult,
+} from "@/components/practice/console-panel";
 import { SessionRecorder } from "@/components/practice/recorder";
 import { classifyModelChanges } from "@/lib/engine/editor-events";
 import { openRecording } from "@/lib/engine/session-clock";
-
-const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+import type { PracticeQuestionDetail } from "@/lib/services/practice";
 
 type PublicTest =
   | { id: string; visibility: "visible"; input: string; expectedOutput: string }
@@ -50,7 +56,11 @@ type Question = {
   difficulty: number;
   languages: string[];
   starterCode: Record<string, string>;
+  status: string;
+  conceptIds: string[];
   tests: PublicTest[];
+  visibleTestCount: number;
+  hiddenTestCount: number;
 };
 
 type NextPayload = {
@@ -65,28 +75,6 @@ type NextPayload = {
   question: Question | null;
 };
 
-type VisibleResult = {
-  id: string;
-  passed: boolean;
-  outcome: string;
-  stdout: string;
-  stderr: string;
-  durationMs: number;
-  message: string;
-};
-
-type SubmitResult = {
-  passed: number;
-  total: number;
-  correct: boolean;
-  attemptId: string | null;
-  compilationError?: string;
-  runtimeError?: string;
-  tests: { id: string; passed: boolean; category: string; message: string; stderr?: string }[];
-  mastery: { before: number; after: number }[];
-};
-
-
 type SessionInfo = { id: string; mode: "practice" | "graded"; recording: boolean };
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
@@ -99,9 +87,16 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   return body.data as T;
 }
 
-function startingLanguage(question: Question | null) {
-  if (question?.languages.includes("javascript")) return "javascript";
-  return question?.languages[0] ?? "javascript";
+function startingLanguage(question: Question | null): string {
+  if (!question) return "javascript";
+  if (question.languages.includes("javascript")) return "javascript";
+  return question.languages[0] ?? "javascript";
+}
+
+function difficultyLabel(difficulty: number): "Easy" | "Medium" | "Hard" {
+  if (difficulty <= 2) return "Easy";
+  if (difficulty === 3) return "Medium";
+  return "Hard";
 }
 
 export function OAWorkspace({
@@ -114,18 +109,29 @@ export function OAWorkspace({
   consentAccepted: boolean;
 }) {
   const [next, setNext] = useState<NextPayload>(initial);
-  const [consentText, setConsentText] = useState(initialConsent);
   const [accepted, setAccepted] = useState(consentAccepted);
+  const [isStarted, setIsStarted] = useState(false);
+  const [verifyInput, setVerifyInput] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [tabSwitches, setTabSwitches] = useState(0);
+  const [isConsoleCollapsed, setIsConsoleCollapsed] = useState(false);
+
   const [language, setLanguage] = useState(startingLanguage(initial.question));
   const [code, setCode] = useState(initial.question?.starterCode[startingLanguage(initial.question)] ?? "");
   const [session, setSession] = useState<SessionInfo | null>(null);
-  const [visibleResults, setVisibleResults] = useState<VisibleResult[] | null>(null);
-  const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
+
+  const [visibleResults, setVisibleResults] = useState<VisibleTestResult[] | null>(null);
+  const [submitResult, setSubmitResult] = useState<SubmitTestResult | null>(null);
+  const [activeAction, setActiveAction] = useState<"run" | "submit" | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Timer: Elapsed seconds in examination
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // Local submission history for the Submissions tab
+  const [pastSubmissions, setPastSubmissions] = useState<PracticeQuestionDetail["pastSubmissions"]>([]);
+
+  // Telemetry Recorder refs (Silent, non-intrusive for student, stored for trainer review)
   const recorder = useRef<SessionRecorder | null>(null);
   const pasted = useRef(false);
   const acceptedSuggestion = useRef(false);
@@ -154,49 +160,43 @@ export function OAWorkspace({
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
-  // Track Tab Visibility / Anti-cheat Telemetry
+  // Timer counter when examination has started
+  useEffect(() => {
+    if (!isStarted) return;
+    const timer = setInterval(() => {
+      setElapsedSeconds((s) => s + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isStarted]);
+
+  // Silent Background Telemetry: Track Tab Visibility for Trainer Review (NO student-facing alerts)
   useEffect(() => {
     const onVisibility = () => {
       if (document.hidden) {
-        setTabSwitches((count) => count + 1);
-        recorder.current?.record("tab_hidden", { antiCheatNotice: "User navigated away from OA window" });
+        // Record silently in background telemetry for trainer's review
+        recorder.current?.record("tab_hidden", { timestamp: Date.now() });
       } else {
-        recorder.current?.record("tab_visible");
+        recorder.current?.record("tab_visible", { timestamp: Date.now() });
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
-  const toggleFullscreen = async () => {
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch {
-      // Browser permissions or user gesture constraints
-    }
-  };
-
-  async function ensureSession() {
-    const current = sessionRef.current;
-    if (current && current.mode === "graded" && recorder.current) return current;
+  async function ensureSession(): Promise<SessionInfo> {
+    if (sessionRef.current) return sessionRef.current;
     if (starting.current) return starting.current;
-    const pending = actuallyStart();
-    starting.current = pending;
+    starting.current = createSession();
     try {
-      return await pending;
+      return await starting.current;
     } finally {
-      if (starting.current === pending) starting.current = null;
+      starting.current = null;
     }
   }
 
-  async function actuallyStart(): Promise<SessionInfo> {
+  async function createSession(): Promise<SessionInfo> {
     const currentQuestion = questionRef.current;
-    if (!currentQuestion) throw new Error("No assessment question available.");
-    if (!acceptedRef.current) throw new Error("Accept proctoring consent before starting.");
+    if (!currentQuestion) throw new Error("No active assessment question available.");
     const created = await api<SessionInfo>("/api/sessions", {
       method: "POST",
       body: JSON.stringify({ questionId: currentQuestion.id, mode: "graded" }),
@@ -227,7 +227,6 @@ export function OAWorkspace({
     const consent = await api<{ accepted: boolean; consentText: string }>("/api/consent", { method: "POST" });
     acceptedRef.current = consent.accepted;
     setAccepted(consent.accepted);
-    setConsentText(consent.consentText);
   }
 
   function capture(type: string, payload: Record<string, unknown> = {}) {
@@ -315,371 +314,479 @@ export function OAWorkspace({
     node.addEventListener("cut", () => capture("cut"));
   };
 
+  async function handleStartVerification() {
+    try {
+      await accept();
+      // Auto-enter fullscreen mode
+      if (typeof document !== "undefined" && document.documentElement.requestFullscreen) {
+        try {
+          await document.documentElement.requestFullscreen();
+        } catch {
+          // ignore fullscreen refusal
+        }
+      }
+      setIsStarted(true);
+      void ensureSession().catch(() => undefined);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to verify examination check-in.");
+    }
+  }
+
   async function run() {
     setBusy(true);
+    setActiveAction("run");
     setError("");
+    setSubmitResult(null);
+    setIsConsoleCollapsed(false);
+
     try {
       const current = await ensureSession();
       recorder.current?.record("run", { language });
-      const result = await api<{ tests: VisibleResult[] }>(`/api/sessions/${current.id}/run`, {
+      const result = await api<{
+        tests: VisibleTestResult[];
+        compilationError?: string;
+        runtimeError?: string;
+      }>(`/api/sessions/${current.id}/run`, {
         method: "POST",
         body: JSON.stringify({ language, code }),
       });
       setVisibleResults(result.tests);
       recorder.current?.record("run_result", { outcomes: result.tests.map((test) => test.outcome) });
+
+      // Append to submissions history
+      const allPassed = result.tests.every((t) => t.passed);
+      setPastSubmissions((prev) => [
+        {
+          id: `run-${Date.now()}`,
+          kind: "run",
+          passed: allPassed,
+          passRate: result.tests.filter((t) => t.passed).length / result.tests.length,
+          language,
+          code,
+          createdAt: new Date().toISOString(),
+          durationMs: Math.max(...result.tests.map((t) => t.durationMs), 0),
+        },
+        ...prev,
+      ]);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Run failed");
     } finally {
       setBusy(false);
+      setActiveAction(null);
     }
   }
 
   async function submit() {
     setBusy(true);
+    setActiveAction("submit");
     setError("");
+    setVisibleResults(null);
+    setIsConsoleCollapsed(false);
+
     try {
       const current = await ensureSession();
       recorder.current?.record("submit", { language });
-      const result = await api<SubmitResult>(`/api/sessions/${current.id}/submit`, {
-        method: "POST",
-        body: JSON.stringify({ language, code }),
-      });
+      const result = await api<SubmitTestResult & { mastery?: { before: number; after: number }[] }>(
+        `/api/sessions/${current.id}/submit`,
+        {
+          method: "POST",
+          body: JSON.stringify({ language, code }),
+        },
+      );
       setSubmitResult(result);
       recorder.current?.record("submit_result", {
         passed: result.passed,
         total: result.total,
         categories: result.tests.map((test) => test.category),
       });
+
+      // Append to submissions history
+      setPastSubmissions((prev) => [
+        {
+          id: result.attemptId ?? `submit-${Date.now()}`,
+          kind: "submit",
+          passed: result.correct,
+          passRate: result.passed / result.total,
+          language,
+          code,
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Submit failed");
     } finally {
       setBusy(false);
+      setActiveAction(null);
     }
   }
 
+  // Keyboard shortcut: Ctrl + Enter / Cmd + Enter to Run
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (!busy && isStarted) void run();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [busy, isStarted, language, code]);
+
   const question = next?.question ?? null;
 
+  if (!question) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-border/80 bg-card space-y-4 shadow-sm">
+        <div className="size-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
+          <Sparkles className="size-6" />
+        </div>
+        <h2 className="text-xl font-bold text-foreground">Assessment Complete</h2>
+        <p className="text-sm text-muted-foreground max-w-md">
+          There are no scheduled questions pending for this concept. All syllabus concepts are mastered!
+        </p>
+        <Link
+          href="/dashboard"
+          className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          Return to Student Dashboard
+        </Link>
+      </div>
+    );
+  }
+
+  // Extract visible tests for sample testing
+  const visibleTests = question.tests
+    .filter((t): t is { id: string; visibility: "visible"; input: string; expectedOutput: string } => t.visibility === "visible")
+    .map((t) => ({ id: t.id, input: t.input, expectedOutput: t.expectedOutput }));
+
+  // Map to PracticeQuestionDetail shape so ProblemDescription renders identically to Practice Lab
+  const mappedQuestion: PracticeQuestionDetail = {
+    id: question.id,
+    number: 1,
+    title: question.statement.split(".")[0]?.trim() || "Online Assessment Problem",
+    statement: question.statement,
+    difficulty: question.difficulty,
+    difficultyLabel: difficultyLabel(question.difficulty),
+    conceptId: next.decision.conceptId,
+    conceptName: next.moduleName || "Examination Target",
+    moduleId: next.moduleId,
+    moduleName: next.moduleName,
+    languages: question.languages,
+    starterCode: question.starterCode,
+    status: submitResult?.correct ? "solved" : pastSubmissions.length > 0 ? "attempted" : "todo",
+    examples: visibleTests.map((t, idx) => ({
+      id: `ex-${idx + 1}`,
+      input: t.input.trim(),
+      output: t.expectedOutput.trim(),
+      explanation: `Expected return value corresponding to sample input ${idx + 1}.`,
+    })),
+    constraints: [
+      "Standard input/output parameters via function signature",
+      "Time Limit: 2000 ms per test case",
+      "Memory Limit: 256 MB in isolated container sandbox",
+    ],
+    hints: [
+      "Write your main solution logic inside the provided function block.",
+      "Arguments are passed directly as function parameters — return the result directly.",
+    ],
+    editorial: {
+      intuition: "In official assessment mode, implementation logic should be written within the function block.",
+      approach: "1. Process function arguments.\n2. Return computed answer directly from function.",
+      keyConcepts: [next.moduleName, "Algorithm Efficiency", "Process Integrity"],
+      complexity: { time: "O(1) to O(n)", space: "O(1)" },
+    },
+    visibleTests,
+    hiddenTestCount: question.hiddenTestCount,
+    pastSubmissions,
+    allChallenges: [
+      {
+        id: question.id,
+        number: 1,
+        title: question.statement.split(".")[0]?.trim() || "Official Assessment",
+        difficultyLabel: difficultyLabel(question.difficulty),
+        status: submitResult?.correct ? "solved" : pastSubmissions.length > 0 ? "attempted" : "todo",
+      },
+    ],
+  };
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  const isConfirmedYes = verifyInput.trim().toLowerCase() === "yes";
+
   return (
-    <div className="space-y-6">
-      {/* Isolated Online Assessment Top Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-linear-to-r from-zinc-950 via-zinc-900 to-zinc-950 p-5 text-white shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
-            <ShieldAlert className="size-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                Online Assessment (OA) Environment
-              </span>
-              <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-mono font-semibold text-amber-300 border border-amber-500/30">
-                Isolated
-              </span>
+    <div
+      className={`flex flex-col bg-background text-foreground transition-all ${
+        isFullscreen
+          ? "fixed inset-0 z-50 h-screen w-screen p-3 bg-zinc-950 overflow-hidden"
+          : "min-h-[calc(100vh-12rem)] space-y-3"
+      }`}
+    >
+      {/* =========================================================================
+          MID-SCREEN VERIFICATION MODAL (Pre-flight check before examination starts)
+          ========================================================================= */}
+      {!isStarted ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl text-zinc-100 space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-3 border-b border-zinc-800 pb-4">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <FileCheck2 className="size-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400">
+                    Official Coding Assessment
+                  </span>
+                  <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-300 border border-emerald-500/30">
+                    Proctored
+                  </span>
+                </div>
+                <h2 className="text-base font-bold text-white">
+                  Examination Pre-Flight Verification
+                </h2>
+              </div>
             </div>
-            <h1 className="text-lg font-bold text-white">
-              Official Coding Mastery Examination
-            </h1>
+
+            {/* Assessment Specs */}
+            <div className="space-y-3 rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 text-xs space-y-2">
+              <div className="flex items-center justify-between text-zinc-400">
+                <span>Module:</span>
+                <span className="font-semibold text-zinc-200">{next.moduleName}</span>
+              </div>
+              <div className="flex items-center justify-between text-zinc-400">
+                <span>Problem Difficulty:</span>
+                <span
+                  className={`font-semibold ${
+                    mappedQuestion.difficultyLabel === "Easy"
+                      ? "text-emerald-400"
+                      : mappedQuestion.difficultyLabel === "Medium"
+                      ? "text-amber-400"
+                      : "text-rose-400"
+                  }`}
+                >
+                  {mappedQuestion.difficultyLabel}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-zinc-400">
+                <span>Evaluation Suite:</span>
+                <span className="font-mono text-zinc-300">
+                  {visibleTests.length} Sample + {question.hiddenTestCount} Hidden Tests
+                </span>
+              </div>
+            </div>
+
+            {/* Guidelines */}
+            <div className="space-y-2 text-xs text-zinc-400 leading-relaxed">
+              <p className="flex items-start gap-2">
+                <CheckCircle2 className="size-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                <span>
+                  The workspace is formatted in the LeetCode split-view structure with pure function blocks.
+                </span>
+              </p>
+              <p className="flex items-start gap-2">
+                <CheckCircle2 className="size-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                <span>
+                  Upon confirmation, your browser will automatically transition into full-screen examination mode.
+                </span>
+              </p>
+            </div>
+
+            {/* Verification Prompt (Must say/type "yes") */}
+            <div className="space-y-3 pt-2 border-t border-zinc-800">
+              <label className="block text-xs font-medium text-zinc-300">
+                Are you ready to begin the test? Please type <strong className="text-emerald-400 font-mono">yes</strong> to confirm:
+              </label>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={verifyInput}
+                  onChange={(e) => setVerifyInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && isConfirmedYes) void handleStartVerification();
+                  }}
+                  placeholder='Type "yes" here...'
+                  autoFocus
+                  className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-mono text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-hidden"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setVerifyInput("yes")}
+                  className="rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-1 text-[11px] text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
+                >
+                  Auto &quot;yes&quot;
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <Link
+                  href="/dashboard"
+                  className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                >
+                  Cancel &amp; Return to Dashboard
+                </Link>
+
+                <button
+                  type="button"
+                  disabled={!isConfirmedYes}
+                  onClick={() => void handleStartVerification()}
+                  className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md"
+                >
+                  <ShieldCheck className="size-4" />
+                  <span>Yes, Begin Test</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* =========================================================================
+          TOP LEETCODE NAVIGATION BAR (Identical to Practice Lab)
+          ========================================================================= */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/80 px-4 py-2.5 shadow-xs backdrop-blur-xs">
+        {/* Left: Problem Details & Title */}
+        <div className="flex items-center gap-2">
+          {/* Back to Dashboard */}
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/50 px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+          >
+            <ArrowLeft className="size-3.5" />
+            <span className="hidden sm:inline">Exit Exam</span>
+          </Link>
+
+          {/* Current Problem Title & Badge */}
+          <div className="flex items-center gap-2 pl-2 border-l border-border/60">
+            <span className="font-mono text-xs font-semibold text-muted-foreground">
+              #1
+            </span>
+            <span className="text-xs font-bold text-foreground truncate max-w-xs sm:max-w-md">
+              {mappedQuestion.title}
+            </span>
+            <span
+              className={`rounded-md px-2 py-0.5 text-[10px] font-semibold border ${
+                mappedQuestion.difficultyLabel === "Easy"
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : mappedQuestion.difficultyLabel === "Medium"
+                  ? "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                  : "border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400"
+              }`}
+            >
+              {mappedQuestion.difficultyLabel}
+            </span>
           </div>
         </div>
 
+        {/* Right: Live Timer, Official Badge & Zen Mode */}
         <div className="flex items-center gap-3">
-          {/* Fullscreen Mode Toggle */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void toggleFullscreen()}
-            className="gap-2 border-zinc-700 bg-zinc-800/80 text-xs text-white hover:bg-zinc-700 hover:text-white"
-          >
-            {isFullscreen ? (
-              <>
-                <Minimize2 className="size-3.5" />
-                <span>Exit Fullscreen</span>
-              </>
-            ) : (
-              <>
-                <Maximize2 className="size-3.5" />
-                <span>Enter Fullscreen OA Mode</span>
-              </>
-            )}
-          </Button>
-
-          {/* Telemetry Status Indicator */}
-          <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300">
-            <span className={`size-2 rounded-full ${session?.recording ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
-            <span className="font-mono text-[11px]">
-              {session?.recording ? "Proctoring Active" : "Test Environment Ready"}
-            </span>
+          {/* Live Exam Elapsed Timer */}
+          <div className="flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/40 px-2.5 py-1 text-xs font-mono font-medium text-foreground">
+            <Clock className="size-3.5 text-zinc-400" />
+            <span>{formatTimer(elapsedSeconds)}</span>
           </div>
+
+          {/* Official Graded Badge */}
+          <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Official Assessment (Graded)</span>
+          </div>
+
+          {/* Fullscreen Zen Mode Toggle */}
+          <button
+            type="button"
+            onClick={async () => {
+              if (!isFullscreen && document.documentElement.requestFullscreen) {
+                try {
+                  await document.documentElement.requestFullscreen();
+                } catch {
+                  // ignore
+                }
+              } else if (isFullscreen && document.exitFullscreen) {
+                try {
+                  await document.exitFullscreen();
+                } catch {
+                  // ignore
+                }
+              }
+              setIsFullscreen(!isFullscreen);
+            }}
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
+            className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            {isFullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+            <span className="hidden sm:inline">{isFullscreen ? "Exit Zen" : "Zen"}</span>
+          </button>
         </div>
       </div>
 
-      {/* Fullscreen Advisory Banner if not in fullscreen */}
-      {!isFullscreen ? (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="size-4 shrink-0 text-amber-500" />
-            <span>
-              <strong>Fullscreen Recommendation:</strong> Standard Online Assessments require full-screen focus. Click &apos;Enter Fullscreen OA Mode&apos; for an uninterrupted testing session.
-            </span>
-          </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => void toggleFullscreen()}
-            className="text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
-          >
-            Go Fullscreen
-          </Button>
+      {/* =========================================================================
+          MAIN SPLIT LAYOUT (Identical to Practice Lab)
+          Left Pane: Problem Description (5 cols)
+          Right Pane: Code Editor + Console Panel (7 cols)
+          ========================================================================= */}
+      <div
+        className={`grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 ${
+          isFullscreen ? "h-[calc(100vh-4.5rem)] overflow-hidden" : "min-h-[640px]"
+        }`}
+      >
+        {/* Left Pane: Problem Description */}
+        <div className="lg:col-span-5 h-full overflow-hidden">
+          <ProblemDescription
+            question={mappedQuestion}
+            onRestoreCode={(restoredCode, restoredLanguage) => {
+              if (question.languages.includes(restoredLanguage)) setLanguage(restoredLanguage);
+              setCode(restoredCode);
+            }}
+          />
         </div>
-      ) : null}
 
-      {/* Tab Switch Warning if any detected */}
-      {tabSwitches > 0 ? (
-        <div className="flex items-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-xs text-destructive font-medium">
-          <AlertTriangle className="size-4 shrink-0" />
-          <span>
-            Integrity Alert: {tabSwitches} window or tab defocus event(s) logged to the audit replay queue.
-          </span>
-        </div>
-      ) : null}
-
-      {/* Proctoring Consent Agreement */}
-      {!accepted ? (
-        <section className="rounded-xl border border-border/80 bg-card p-6 shadow-sm space-y-3">
-          <div className="flex items-center gap-2 text-foreground font-semibold">
-            <Lock className="size-4 text-primary" />
-            <span>Online Assessment Proctoring & Telemetry Consent</span>
-          </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            {consentText}
-          </p>
-          <Button size="sm" onClick={() => void accept()} className="text-xs mt-2">
-            I agree, begin my Online Assessment
-          </Button>
-        </section>
-      ) : null}
-
-      {/* Question & Code Challenge Runner */}
-      {question ? (
-        <section className="space-y-4 rounded-xl border border-border/80 bg-card p-5 shadow-xs">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-            <div className="flex items-center gap-2">
-              <span className="rounded-md border border-border bg-muted px-2.5 py-0.5 text-xs font-mono font-semibold text-foreground">
-                Difficulty {question.difficulty}
-              </span>
-              <h2 className="text-base font-semibold text-foreground">
-                Assessment Coding Challenge
-              </h2>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-muted-foreground">Language:</span>
-              <select
-                id="oa-language"
-                className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground shadow-2xs"
-                value={language}
-                onChange={(e) => {
-                  setLanguage(e.target.value);
-                  setCode(question.starterCode[e.target.value] ?? "");
-                }}
-              >
-                {question.languages.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-foreground leading-relaxed">
-              {question.statement}
-            </p>
-            <ul className="space-y-1 text-xs text-muted-foreground">
-              {question.tests
-                .filter((test) => test.visibility === "visible")
-                .map((test) =>
-                  test.visibility === "visible" ? (
-                    <li key={test.id} className="flex items-center gap-1.5">
-                      <span className="font-semibold text-foreground">Sample Test:</span>
-                      <span>in</span>
-                      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground border border-border/60">
-                        {test.input.trim() || "(empty)"}
-                      </code>
-                      <span>&rarr; expected</span>
-                      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground border border-border/60">
-                        {test.expectedOutput.trim()}
-                      </code>
-                    </li>
-                  ) : null,
-                )}
-              <li className="text-[11px] text-muted-foreground italic">
-                {question.tests.filter((test) => test.visibility === "hidden").length} hidden tests execute securely in sandbox evaluation.
-              </li>
-            </ul>
-          </div>
-
-          {/* Monaco Editor Container */}
-          <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-xs">
-            <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/80 px-3 py-1.5 font-mono text-[11px] text-zinc-400">
-              <span>solution.{language === "cpp" ? "cpp" : language === "javascript" ? "js" : language}</span>
-              <span className="text-[10px] text-zinc-400">Secure Sandboxed Editor</span>
-            </div>
-            <Editor
-              height="380px"
-              language={language === "cpp" ? "cpp" : language}
-              theme="vs-dark"
-              value={code}
-              onChange={(value) => setCode(value ?? "")}
-              onMount={onMount}
+        {/* Right Pane: Code Editor + Console */}
+        <div className="lg:col-span-7 flex flex-col h-full gap-3 overflow-hidden">
+          {/* Top: Editor Panel */}
+          <div className="flex-1 min-h-[360px] overflow-hidden">
+            <EditorPanel
+              language={language}
+              languages={question.languages}
+              code={code}
+              onChangeCode={(newCode) => {
+                setCode(newCode);
+                documentText.current = newCode;
+              }}
+              onSelectLanguage={(newLang) => {
+                setLanguage(newLang);
+                setCode(question.starterCode[newLang] ?? "");
+              }}
+              onResetStarter={() => {
+                setCode(question.starterCode[language] ?? "");
+              }}
+              onMountEditor={onMount}
             />
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Button onClick={() => void run()} disabled={busy || !accepted} className="text-xs">
-              Run Sample Tests
-            </Button>
-            <Button
-              variant="default"
-              onClick={() => void submit()}
-              disabled={busy || !accepted}
-              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              Submit Official Assessment
-            </Button>
+          {/* Bottom: Console Panel */}
+          <div className="shrink-0">
+            <ConsolePanel
+              sampleTests={visibleTests}
+              visibleResults={visibleResults}
+              submitResult={submitResult}
+              isBusy={busy}
+              activeAction={activeAction}
+              error={error}
+              onRun={() => void run()}
+              onSubmit={() => void submit()}
+              isCollapsed={isConsoleCollapsed}
+              onToggleCollapse={() => setIsConsoleCollapsed(!isConsoleCollapsed)}
+            />
           </div>
-        </section>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          No published question is scheduled for this assessment concept.
-        </p>
-      )}
-
-      {/* Primary Syntax / Compilation / Runtime Error Callout */}
-      {(() => {
-        const primaryErrorText =
-          error ||
-          submitResult?.compilationError ||
-          submitResult?.runtimeError ||
-          submitResult?.tests.find((t) => t.stderr)?.stderr ||
-          visibleResults?.find((r) => r.stderr && (r.outcome === "compile_error" || r.outcome === "runtime_error" || !r.passed))?.stderr;
-
-        if (!primaryErrorText) return null;
-
-        const isSyntaxError =
-          /SyntaxError/i.test(primaryErrorText) ||
-          /Unexpected token/i.test(primaryErrorText) ||
-          /ReferenceError/i.test(primaryErrorText) ||
-          /compile_error/i.test(submitResult?.tests[0]?.category ?? "") ||
-          /TypeError/i.test(primaryErrorText);
-
-        return (
-          <section className="overflow-hidden rounded-xl border border-rose-500/40 bg-linear-to-b from-rose-950/40 to-rose-950/20 text-rose-200 shadow-md">
-            <div className="flex items-center justify-between border-b border-rose-500/30 bg-rose-900/30 px-4 py-2.5 text-xs">
-              <div className="flex items-center gap-2">
-                <AlertOctagon className="size-4 text-rose-400 shrink-0" />
-                <span className="font-bold tracking-tight text-rose-300">
-                  {isSyntaxError ? "Syntax / Compilation Error Detected" : "Execution Runtime Error"}
-                </span>
-              </div>
-              <span className="rounded bg-rose-500/20 px-2 py-0.5 text-[10px] font-mono font-semibold text-rose-300 border border-rose-500/30">
-                Action Required
-              </span>
-            </div>
-            <div className="p-4 space-y-2.5">
-              <div className="flex items-start gap-2 text-xs text-rose-200/90">
-                <HelpCircle className="size-3.5 text-rose-400 shrink-0 mt-0.5" />
-                <p className="text-[11px]">
-                  A syntactical or execution exception occurred. Review the line numbers and stack trace below to correct your code in the function block before re-evaluating.
-                </p>
-              </div>
-              <pre className="max-h-56 overflow-auto rounded-lg bg-black/80 p-3.5 font-mono text-xs text-rose-300 border border-rose-900/60 whitespace-pre-wrap leading-relaxed selection:bg-rose-900/50">
-                {primaryErrorText}
-              </pre>
-            </div>
-          </section>
-        );
-      })()}
-
-      {/* Visible Run Output */}
-      {visibleResults ? (
-        <section className="space-y-3 rounded-xl border border-border/70 bg-card p-5 shadow-xs">
-          <div className="flex items-center justify-between border-b border-border/60 pb-2">
-            <h3 className="text-sm font-semibold tracking-tight text-foreground">Sample Test Results</h3>
-            <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
-              {visibleResults.filter((t) => t.passed).length} of {visibleResults.length} passed
-            </span>
-          </div>
-          <div className="space-y-2.5">
-            {visibleResults.map((test) => (
-              <article key={test.id} className="rounded-lg border border-border/70 bg-background/50 p-3.5 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${
-                      test.passed
-                        ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                        : "border border-destructive/20 bg-destructive/10 text-destructive"
-                    }`}
-                  >
-                    {test.passed ? "Passed" : test.message}
-                  </span>
-                  <span className="font-mono text-[11px] text-muted-foreground">{test.durationMs} ms</span>
-                </div>
-                {test.stdout ? (
-                  <pre className="overflow-auto rounded-md bg-zinc-950 p-2.5 font-mono text-xs text-zinc-200 border border-border/60">{test.stdout}</pre>
-                ) : null}
-                {test.stderr ? (
-                  <pre className="overflow-auto rounded-md bg-destructive/10 p-2.5 font-mono text-xs text-destructive border border-destructive/20">{test.stderr}</pre>
-                ) : null}
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {/* Submit Evaluation Output */}
-      {submitResult ? (
-        <section className="rounded-xl border border-border/70 bg-card p-5 shadow-xs space-y-3">
-          <div className="flex items-center justify-between border-b border-border/60 pb-2">
-            <h3 className="text-sm font-semibold tracking-tight text-foreground">
-              Official Evaluation · {submitResult.passed}/{submitResult.total} Hidden Tests Passed
-            </h3>
-            <span
-              className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
-                submitResult.correct
-                  ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                  : "border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-              }`}
-            >
-              {submitResult.correct ? "All Passed" : "Partial Pass"}
-            </span>
-          </div>
-          <ul className="space-y-1.5 text-xs">
-            {submitResult.tests.map((test, index) => (
-              <li key={test.id} className="flex items-center justify-between rounded-md border border-border/60 bg-background/50 px-3 py-1.5">
-                <span className="font-medium text-foreground">Hidden Test {index + 1}</span>
-                <span
-                  className={`font-semibold text-[11px] ${
-                    test.passed ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
-                  }`}
-                >
-                  {test.passed ? "Passed" : `${test.category}. ${test.message}`}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {submitResult.mastery.map((update, index) => (
-            <p key={index} className="pt-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              Bayesian Knowledge Tracing (BKT) Mastery updated from {update.before.toFixed(2)} to {update.after.toFixed(2)}.
-            </p>
-          ))}
-        </section>
-      ) : null}
-
-      {submitResult?.attemptId ? <ExplainStep attemptId={submitResult.attemptId} /> : null}
+        </div>
+      </div>
     </div>
   );
 }
