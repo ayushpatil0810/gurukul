@@ -10,10 +10,12 @@ DETECTED_IP=$(curl -s --max-time 3 ifconfig.me || hostname -I | awk '{print $1}'
 echo "[+] Detected Server IP: $DETECTED_IP"
 
 # 2. Check Bun installation
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
 if ! command -v bun &> /dev/null; then
   echo "[!] Bun not found. Installing Bun..."
   curl -fsSL https://bun.sh/install | bash
-  export BUN_INSTALL="$HOME/.bun"
   export PATH="$BUN_INSTALL/bin:$PATH"
 fi
 echo "[+] Using Bun version: $(bun --version)"
