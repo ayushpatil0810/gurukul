@@ -740,6 +740,7 @@ export function OAWorkspace({
         <div className="lg:col-span-5 h-full overflow-hidden">
           <ProblemDescription
             question={mappedQuestion}
+            isAssessment={true}
             onRestoreCode={(restoredCode, restoredLanguage) => {
               if (question.languages.includes(restoredLanguage)) setLanguage(restoredLanguage);
               setCode(restoredCode);

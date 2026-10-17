@@ -58,6 +58,12 @@ describe("Function Block & Error Display Suite", () => {
         q.starter,
         `Starter code for "${q.statement}" should not contain readFileSync`,
       ).not.toContain("readFileSync");
+
+      // Starter code must contain empty body with // Write your code here
+      expect(
+        q.starter,
+        `Starter code for "${q.statement}" must contain "// Write your code here"`,
+      ).toContain("// Write your code here");
     }
   });
 

@@ -86,8 +86,7 @@ export const DEMO_QUESTIONS: SeedQuestion[] = [
  * @return {number}
  */
 function sum(a, b) {
-  // Write your code here
-  return a + b;
+    // Write your code here
 }
 `,
     visibleTests: [
@@ -114,8 +113,7 @@ function sum(a, b) {
  * @return {number}
  */
 function doubleInteger(n) {
-  // Write your code here
-  return n * 2;
+    // Write your code here
 }
 `,
     visibleTests: [
@@ -144,8 +142,7 @@ function doubleInteger(n) {
  * @return {number}
  */
 function findLargest(a, b, c) {
-  // Write your code here
-  return Math.max(a, b, c);
+    // Write your code here
 }
 `,
     visibleTests: [
@@ -173,8 +170,7 @@ function findLargest(a, b, c) {
  * @return {number}
  */
 function product(a, b) {
-  // Write your code here
-  return a * b;
+    // Write your code here
 }
 `,
     visibleTests: [
@@ -201,11 +197,7 @@ function product(a, b) {
  * @return {number}
  */
 function factorial(n) {
-  // Write your code here
-  if (n <= 1) return 1;
-  let ans = 1;
-  for (let i = 2; i <= n; i++) ans *= i;
-  return ans;
+    // Write your code here
 }
 `,
     visibleTests: [
@@ -234,8 +226,7 @@ function factorial(n) {
  * @return {number}
  */
 function minimum(a, b, c) {
-  // Write your code here
-  return Math.min(a, b, c);
+    // Write your code here
 }
 `,
     visibleTests: [
@@ -264,7 +255,6 @@ function minimum(a, b, c) {
 
   area() {
     // Write your code here
-    return this.width * this.height;
   }
 }
 `,
@@ -293,7 +283,6 @@ function minimum(a, b, c) {
 
   increment() {
     // Write your code here
-    return this.value + 1;
   }
 }
 `,
@@ -325,7 +314,6 @@ class Square extends Shape {
 
   area() {
     // Write your code here
-    return this.side * this.side;
   }
 }
 `,
@@ -356,7 +344,6 @@ class Square extends Shape {
 class Dog extends Animal {
   speak() {
     // Write your code here
-    return this.name + ": woof";
   }
 }
 `,
@@ -390,8 +377,7 @@ class Dog extends Animal {
 
 class DiscountedPrice extends Price {
   value() {
-    // Write your code here (apply 10% discount)
-    return Math.round(this.amount * 0.9);
+    // Write your code here
   }
 }
 `,
@@ -416,7 +402,6 @@ class DiscountedPrice extends Price {
     starter: `class PlainFormatter {
   format(name) {
     // Write your code here
-    return "Hello, " + name;
   }
 }
 
@@ -455,7 +440,6 @@ class Greeter {
 
   now() {
     // Write your code here
-    return this.value;
   }
 }
 
@@ -490,7 +474,6 @@ class Reporter {
     starter: `class Transport {
   send(body) {
     // Write your code here
-    return "sent:" + body;
   }
 }
 

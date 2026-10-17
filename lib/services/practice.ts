@@ -160,13 +160,13 @@ const ENRICHED_METADATA: Record<
     ],
     hints: [
       "Input parameters `a` and `b` are passed directly into the function.",
-      "Return `a + b` from the body of `sum(a, b)`.",
+      "Perform the addition operation on the arguments and return the resulting value.",
     ],
     editorial: {
       intuition:
         "Standard LeetCode function style accepts parameters directly through the function signature.",
       approach:
-        "1. Receive arguments `a` and `b`.\n2. Return the evaluated expression `a + b`.",
+        "1. Receive arguments `a` and `b`.\n2. Compute the addition of both operands and return the value.",
       keyConcepts: ["Variables", "Function Parameters", "Arithmetic Operators", "Return Values"],
       complexity: {
         time: "O(1) arithmetic operations",
@@ -226,10 +226,10 @@ const ENRICHED_METADATA: Record<
       },
     ],
     constraints: ["-10^6 <= a, b <= 10^6"],
-    hints: ["Implement the body of product(a, b) to return a * b."],
+    hints: ["Perform multiplication between the two arguments and return the computed product."],
     editorial: {
       intuition: "Encapsulate arithmetic computation inside a pure function.",
-      approach: "Return a * b inside product(a, b).",
+      approach: "Compute the product of both operands and return the result.",
       keyConcepts: ["Functions", "Parameters", "Return Statements"],
       complexity: { time: "O(1)", space: "O(1)" },
     },
@@ -271,10 +271,10 @@ const ENRICHED_METADATA: Record<
       },
     ],
     constraints: ["-10^9 <= a, b, c <= 10^9"],
-    hints: ["Implement function minimum(a, b, c) returning Math.min(a, b, c)."],
+    hints: ["Compare the three values or use comparative logic to return the smallest."],
     editorial: {
       intuition: "Finding minimum using pure function abstractions.",
-      approach: "Return Math.min(a, b, c).",
+      approach: "Determine the smallest value among the three inputs and return it.",
       keyConcepts: ["Functions", "Comparative Logic"],
       complexity: { time: "O(1)", space: "O(1)" },
     },
@@ -292,7 +292,7 @@ const ENRICHED_METADATA: Record<
     hints: ["Inside the area() method, access this.width and this.height."],
     editorial: {
       intuition: "Object-oriented encapsulation of geometric properties.",
-      approach: "In Rectangle.area(), return this.width * this.height.",
+      approach: "In Rectangle.area(), compute the rectangle area from its stored dimensions and return it.",
       keyConcepts: ["Classes", "Constructors", "Methods", "this keyword"],
       complexity: { time: "O(1)", space: "O(1)" },
     },
