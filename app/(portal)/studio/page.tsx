@@ -6,6 +6,7 @@ import { getActor } from "@/lib/auth/actor";
 import { AppError } from "@/lib/errors";
 import { listLessons } from "@/lib/services/lessons";
 import { lessonModelConfigured } from "@/lib/engine/lesson-provider";
+import { Button } from "@/components/ui/button";
 
 import { StudioHub } from "@/components/studio/studio-hub";
 
@@ -23,7 +24,7 @@ async function StudioList() {
     if (error instanceof AppError && (error.statusCode === 403 || error.statusCode === 404)) denied = error.message;
     else throw error;
   }
-  if (denied) return <p className="text-sm">{denied}</p>;
+  if (denied) return <p className="text-sm text-destructive">{denied}</p>;
 
   return (
     <StudioHub
@@ -35,8 +36,8 @@ async function StudioList() {
 
 export default function StudioPage() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <Suspense fallback={<p className="text-sm">Loading lessons…</p>}>
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading lesson studio…</p>}>
         <StudioList />
       </Suspense>
     </div>

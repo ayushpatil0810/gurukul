@@ -26,11 +26,18 @@ async function QuestionScreen() {
 
 export default function QuestionsPage() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <h1 className="text-3xl font-bold tracking-tight">Question bank</h1>
-      <p className="mt-1 mb-6 text-sm text-muted-foreground">
-        Hidden tests stay on the server. This list shows how many exist, not their inputs or expected outputs.
-      </p>
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col gap-1 border-b border-border/60 pb-4">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Question Bank</h1>
+          <span className="rounded-md border border-border/80 bg-background/50 px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider text-muted-foreground">
+            Hidden Test Suite
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Author questions and test assertion suites. Hidden test cases remain on the server and execute in isolated Docker sandboxes during assessments.
+        </p>
+      </div>
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading questions…</p>}>
         <QuestionScreen />
       </Suspense>

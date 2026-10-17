@@ -122,14 +122,31 @@ export function PortalSidebar() {
     ...(isStudent
       ? [
           {
+            label: "Learning & Practice",
+            collapsible: true,
+            items: [
+              {
+                name: "Learn Module",
+                href: "/learn",
+                icon: BookOpenIcon,
+                badge: "Concepts",
+              },
+              {
+                name: "Practice Lab",
+                href: "/practice",
+                icon: Code2,
+              },
+            ],
+          },
+          {
             label: "Assessment",
             collapsible: true,
             items: [
               {
-                name: "Practice & Run",
-                href: "/practice",
-                icon: Code2,
-                badge: "Active",
+                name: "Online Assessment (OA)",
+                href: "/assessment",
+                icon: ShieldAlert,
+                badge: "OA",
               },
             ],
           },
@@ -171,7 +188,7 @@ export function PortalSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/70 bg-sidebar">
       {/* Header */}
-      <SidebarHeader className="relative h-18 flex-row items-center justify-between gap-3 px-4 border-b border-sidebar-border/60 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+      <SidebarHeader className="relative h-16 flex-row items-center justify-between gap-3 px-4 border-b border-sidebar-border/70 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
         <div className="flex min-w-0 items-center gap-2.5 transition-opacity group-data-[collapsible=icon]:hidden">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-xs">
             <LearnLoopLogo className="size-4.5 text-primary-foreground" />

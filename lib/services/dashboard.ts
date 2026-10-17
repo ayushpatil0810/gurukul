@@ -1,14 +1,17 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  assignments,
   attempts,
   batchMembers,
   batchTrainers,
   batches,
+  classroomEvents,
   concepts,
   explainQa,
   explainSets,
   learningSessions,
+  lessons,
   masteryState,
   masteryUpdates,
   moduleConcepts,
@@ -548,4 +551,585 @@ function hiddenCounts(value: unknown): { passed: number | null; total: number | 
 
 function formatUtc(date: Date): string {
   return `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+}
+
+export type StudentDashboardFullView = {
+  student: { id: string; name: string };
+  batch: { id: string; name: string } | null;
+  module: { id: string; name: string; threshold: number; goalName: string } | null;
+  overview: {
+    totalConcepts: number;
+    masteredConcepts: number;
+    developingConcepts: number;
+    unassessedConcepts: number;
+    courseCompletionRate: number;
+    averageMastery: number;
+    standingLabel: string;
+    bktConfidence: number;
+  };
+  assignments: {
+    totalCount: number;
+    completedCount: number;
+    completionRate: number;
+    passRate: number | null;
+    items: {
+      id: string;
+      title: string;
+      mode: string;
+      deadline: string | null;
+      completed: boolean;
+      passRate: number | null;
+    }[];
+  };
+  currentFocus: {
+    conceptId: string;
+    conceptName: string;
+    description: string;
+    reason: string;
+    storedMastery: number | null;
+    predictedSuccess: number | null;
+    prerequisites: { id: string; name: string; ready: boolean; storedMastery: number | null }[];
+    alternatives: { name: string; note: string; storedMastery: number | null }[];
+  } | null;
+  nextAction: {
+    activityType: string;
+    activityTitle: string;
+    actionLabel: string;
+    badgeLabel: string;
+    href: string;
+    reason: string;
+  } | null;
+  concepts: ConceptDashboardRow[];
+  roadmapChart: {
+    conceptId: string;
+    name: string;
+    step: number;
+    mastery: number;
+    threshold: number;
+    status: "Mastered" | "In Progress" | "Needs Review" | "Not Started";
+    band: MasteryBand;
+    confidenceLabel: string;
+  }[];
+  recommendedLessons: {
+    id: string;
+    title: string;
+    topic: string;
+    objectives: string;
+    learnerLevel: string;
+    durationMinutes: number;
+    conceptName: string;
+    completed: boolean;
+    href: string;
+  }[];
+  leaderboard: {
+    course: {
+      studentId: string;
+      name: string;
+      rank: number;
+      score: number;
+      masteredCount: number;
+      totalConcepts: number;
+      isCurrentStudent: boolean;
+    }[];
+    assignment: {
+      studentId: string;
+      name: string;
+      rank: number;
+      score: number;
+      submissionsCount: number;
+      assertionsPassed: number;
+      isCurrentStudent: boolean;
+    }[];
+    currentStudentRanks: {
+      courseRank: number;
+      courseTotal: number;
+      assignmentRank: number;
+      assignmentTotal: number;
+    };
+  };
+  attempts: AttemptDashboardRow[];
+  activityFeed: {
+    id: string;
+    type: "submission" | "lesson" | "routing";
+    title: string;
+    timestamp: string;
+    detail: string;
+    badge?: string;
+    href?: string;
+  }[];
+};
+
+export async function readStudentDashboardFullView(
+  actor: Actor,
+  moduleId?: string,
+): Promise<StudentDashboardFullView> {
+  if (actor.role !== "student") throw AppError.forbidden("The student dashboard is for students");
+  if (!actor.instituteId) throw AppError.forbidden("Your account is not assigned to an institute");
+
+  const instituteId = actor.instituteId;
+  const studentId = actor.id;
+  const studentName = actor.name;
+
+  // 1. Basic student dashboard data (graph, recommendation, attempts, routing)
+  const base = await loadStudentDashboard(actor, studentId, studentName, moduleId, false);
+  const graph = await loadGraph(instituteId, moduleId);
+
+  // 2. Resolve Student Batch
+  const [batchMembership] = await db
+    .select({ id: batches.id, name: batches.name })
+    .from(batchMembers)
+    .innerJoin(batches, eq(batches.id, batchMembers.batchId))
+    .where(and(eq(batchMembers.studentId, studentId), eq(batches.instituteId, instituteId)))
+    .limit(1);
+
+  const batchInfo = batchMembership ?? null;
+
+  // 3. Batch Members for Cohort Leaderboard
+  const cohortMembers = batchInfo
+    ? await db
+        .select({ id: user.id, name: user.name })
+        .from(batchMembers)
+        .innerJoin(user, eq(user.id, batchMembers.studentId))
+        .where(eq(batchMembers.batchId, batchInfo.id))
+    : [{ id: studentId, name: studentName }];
+
+  const cohortStudentIds = cohortMembers.map((m) => m.id);
+
+  // 4. Course Overview Calculations
+  const conceptIds = graph ? graph.concepts.map((c) => c.id) : [];
+  let masteredCount = 0;
+  let developingCount = 0;
+  let unassessedCount = 0;
+  let masterySum = 0;
+  let assessedCount = 0;
+
+  for (const c of base.concepts) {
+    if (c.pKnow === null) {
+      unassessedCount++;
+    } else {
+      assessedCount++;
+      masterySum += c.pKnow;
+      if (graph && c.pKnow >= graph.module.threshold) {
+        masteredCount++;
+      } else {
+        developingCount++;
+      }
+    }
+  }
+
+  const totalConcepts = base.concepts.length;
+  const avgMastery = assessedCount > 0 ? masterySum / assessedCount : 0;
+  const courseCompletionRate = totalConcepts > 0 ? masteredCount / totalConcepts : 0;
+
+  let standingLabel = "Not Started";
+  if (totalConcepts > 0 && masteredCount === totalConcepts) {
+    standingLabel = "Course Mastered";
+  } else if (masteredCount > 0) {
+    standingLabel = `${masteredCount}/${totalConcepts} Mastered`;
+  } else if (assessedCount > 0) {
+    standingLabel = "In Progress";
+  }
+
+  // 5. Leaderboards (Course Mastery & Assignment Scores)
+  // Course Leaderboard
+  const allMasteryRows =
+    cohortStudentIds.length > 0 && conceptIds.length > 0
+      ? await db
+          .select({
+            studentId: masteryState.studentId,
+            pKnow: masteryState.pKnow,
+          })
+          .from(masteryState)
+          .where(
+            and(
+              inArray(masteryState.studentId, cohortStudentIds),
+              inArray(masteryState.conceptId, conceptIds),
+            ),
+          )
+      : [];
+
+  const studentMasteryMap = new Map<string, { sum: number; count: number; mastered: number }>();
+  for (const m of cohortMembers) {
+    studentMasteryMap.set(m.id, { sum: 0, count: 0, mastered: 0 });
+  }
+
+  for (const row of allMasteryRows) {
+    const entry = studentMasteryMap.get(row.studentId) ?? { sum: 0, count: 0, mastered: 0 };
+    entry.sum += row.pKnow;
+    entry.count += 1;
+    if (graph && row.pKnow >= graph.module.threshold) {
+      entry.mastered += 1;
+    }
+    studentMasteryMap.set(row.studentId, entry);
+  }
+
+  const courseLeaderboardList = cohortMembers
+    .map((member) => {
+      const stats = studentMasteryMap.get(member.id) ?? { sum: 0, count: 0, mastered: 0 };
+      const score = Math.round(stats.sum * 200 + stats.mastered * 100);
+      return {
+        studentId: member.id,
+        name: member.name,
+        score,
+        masteredCount: stats.mastered,
+        totalConcepts,
+        isCurrentStudent: member.id === studentId,
+      };
+    })
+    .sort((a, b) => b.score - a.score || b.masteredCount - a.masteredCount);
+
+  const courseLeaderboard = courseLeaderboardList.map((item, idx) => ({
+    ...item,
+    rank: idx + 1,
+  }));
+
+  // Assignment Leaderboard
+  const allCohortAttempts =
+    cohortStudentIds.length > 0
+      ? await db
+          .select({
+            studentId: learningSessions.studentId,
+            passRate: attempts.passRate,
+            resultJson: attempts.resultJson,
+          })
+          .from(attempts)
+          .innerJoin(learningSessions, eq(learningSessions.id, attempts.sessionId))
+          .where(
+            and(
+              inArray(learningSessions.studentId, cohortStudentIds),
+              eq(learningSessions.mode, "graded"),
+              eq(attempts.kind, "submit"),
+            ),
+          )
+      : [];
+
+  const studentAttemptMap = new Map<
+    string,
+    { submissions: number; assertionsPassed: number; passRateSum: number }
+  >();
+  for (const m of cohortMembers) {
+    studentAttemptMap.set(m.id, { submissions: 0, assertionsPassed: 0, passRateSum: 0 });
+  }
+
+  for (const row of allCohortAttempts) {
+    const entry = studentAttemptMap.get(row.studentId) ?? { submissions: 0, assertionsPassed: 0, passRateSum: 0 };
+    entry.submissions += 1;
+    const counts = hiddenCounts(row.resultJson);
+    if (counts.passed !== null) entry.assertionsPassed += counts.passed;
+    if (row.passRate !== null) entry.passRateSum += row.passRate;
+    studentAttemptMap.set(row.studentId, entry);
+  }
+
+  const assignmentLeaderboardList = cohortMembers
+    .map((member) => {
+      const stats = studentAttemptMap.get(member.id) ?? { submissions: 0, assertionsPassed: 0, passRateSum: 0 };
+      const avgRate = stats.submissions > 0 ? stats.passRateSum / stats.submissions : 0;
+      const score = stats.assertionsPassed * 25 + Math.round(avgRate * 500) + stats.submissions * 20;
+      return {
+        studentId: member.id,
+        name: member.name,
+        score,
+        submissionsCount: stats.submissions,
+        assertionsPassed: stats.assertionsPassed,
+        isCurrentStudent: member.id === studentId,
+      };
+    })
+    .sort((a, b) => b.score - a.score || b.assertionsPassed - a.assertionsPassed);
+
+  const assignmentLeaderboard = assignmentLeaderboardList.map((item, idx) => ({
+    ...item,
+    rank: idx + 1,
+  }));
+
+  const currentCourseRank = courseLeaderboard.find((c) => c.isCurrentStudent)?.rank ?? 1;
+  const currentAssignmentRank = assignmentLeaderboard.find((a) => a.isCurrentStudent)?.rank ?? 1;
+
+  // 6. Assignments & Tasks Tracking
+  const rawBatchAssignments = batchInfo
+    ? await db
+        .select({
+          id: assignments.id,
+          moduleId: assignments.moduleId,
+          deadline: assignments.deadline,
+          mode: assignments.mode,
+          attemptLimit: assignments.attemptLimit,
+          moduleName: modules.name,
+        })
+        .from(assignments)
+        .innerJoin(modules, eq(modules.id, assignments.moduleId))
+        .where(eq(assignments.batchId, batchInfo.id))
+    : [];
+
+  type AssignmentItem = StudentDashboardFullView["assignments"]["items"][number];
+  let assignmentItems: AssignmentItem[] = [];
+
+  if (rawBatchAssignments.length > 0) {
+    // If explicit assignments exist in assignments table
+    for (const a of rawBatchAssignments) {
+      // Check if student has graded attempts for this module's questions
+      const hasPassingAttempt = base.attempts.some(
+        (att) => att.passRate !== null && att.passRate >= 0.8,
+      );
+      const latestAttempt = base.attempts[0];
+      assignmentItems.push({
+        id: a.id,
+        title: `${a.moduleName} (${a.mode === "graded" ? "Graded Assessment" : "Practice Lab"})`,
+        mode: a.mode,
+        deadline: a.deadline ? formatUtc(a.deadline) : null,
+        completed: hasPassingAttempt,
+        passRate: latestAttempt?.passRate ?? null,
+      });
+    }
+  } else if (conceptIds.length > 0) {
+    // Fallback: evaluate questions in the current module as assignment milestones
+    const moduleQuestions = await db
+      .select({
+        id: questions.id,
+        statement: questions.statement,
+        difficulty: questions.difficulty,
+      })
+      .from(questions)
+      .innerJoin(questionConcepts, eq(questionConcepts.questionId, questions.id))
+      .where(
+        and(
+          eq(questions.instituteId, instituteId),
+          eq(questions.status, "published"),
+          inArray(questionConcepts.conceptId, conceptIds),
+        ),
+      )
+      .limit(6);
+
+    const seenQIds = new Set<string>();
+    for (const q of moduleQuestions) {
+      if (seenQIds.has(q.id)) continue;
+      seenQIds.add(q.id);
+
+      const matchingAttempt = base.attempts.find(
+        (att) => att.statement.includes(q.statement.slice(0, 40)),
+      );
+
+      assignmentItems.push({
+        id: q.id,
+        title: q.statement.length > 70 ? `${q.statement.slice(0, 70)}…` : q.statement,
+        mode: "graded",
+        deadline: null,
+        completed: matchingAttempt ? (matchingAttempt.passRate ?? 0) >= 0.8 : false,
+        passRate: matchingAttempt?.passRate ?? null,
+      });
+    }
+  }
+
+  const completedAssignmentsCount = assignmentItems.filter((item) => item.completed).length;
+  const assignmentCompletionRate =
+    assignmentItems.length > 0 ? completedAssignmentsCount / assignmentItems.length : 0;
+
+  // 7. Recommended Published Lessons
+  const publishedLessons =
+    conceptIds.length > 0
+      ? await db
+          .select({
+            id: lessons.id,
+            title: lessons.title,
+            topic: lessons.topic,
+            objectives: lessons.objectives,
+            learnerLevel: lessons.learnerLevel,
+            durationMinutes: lessons.durationMinutes,
+            conceptId: lessons.conceptId,
+          })
+          .from(lessons)
+          .where(
+            and(
+              eq(lessons.instituteId, instituteId),
+              eq(lessons.status, "published"),
+              inArray(lessons.conceptId, conceptIds),
+            ),
+          )
+          .limit(4)
+      : [];
+
+  const completedLessonRows = await db
+    .select({ lessonId: classroomEvents.lessonId })
+    .from(classroomEvents)
+    .where(
+      and(
+        eq(classroomEvents.studentId, studentId),
+        eq(classroomEvents.type, "lesson_complete"),
+      ),
+    );
+  const completedLessonIds = new Set(completedLessonRows.map((r) => r.lessonId));
+
+  const conceptNameMap = new Map(graph ? graph.concepts.map((c) => [c.id, c.name]) : []);
+  const recommendedLessons = publishedLessons.map((l) => ({
+    id: l.id,
+    title: l.title,
+    topic: l.topic,
+    objectives: l.objectives,
+    learnerLevel: l.learnerLevel,
+    durationMinutes: l.durationMinutes,
+    conceptName: conceptNameMap.get(l.conceptId) ?? "Core Concept",
+    completed: completedLessonIds.has(l.id),
+    href: `/learn/${l.id}`,
+  }));
+
+  // 8. Roadmap Chart Data (Topological Sequence)
+  const orderedIds = graph ? orderByPrerequisite(conceptIds, graph.edges) : [];
+  const recConceptId = base.recommendation?.conceptId;
+
+  const roadmapChart = orderedIds.map((id, index) => {
+    const conceptRow = base.concepts.find((c) => c.id === id);
+    const pKnow = conceptRow?.pKnow ?? null;
+    const threshold = graph?.module.threshold ?? 0.8;
+    const masteryPercent = Math.round((pKnow ?? 0) * 100);
+    const thresholdPercent = Math.round(threshold * 100);
+
+    let status: StudentDashboardFullView["roadmapChart"][number]["status"] = "Not Started";
+    if (pKnow !== null && pKnow >= threshold) {
+      status = "Mastered";
+    } else if (pKnow !== null && pKnow > 0) {
+      status = pKnow >= 0.5 ? "In Progress" : "Needs Review";
+    } else if (id === recConceptId) {
+      status = "In Progress";
+    }
+
+    return {
+      conceptId: id,
+      name: conceptNameMap.get(id) ?? id,
+      step: index + 1,
+      mastery: masteryPercent,
+      threshold: thresholdPercent,
+      status,
+      band: conceptRow?.band ?? "not_recorded",
+      confidenceLabel: conceptRow?.confidenceLabel ?? "Not estimated",
+    };
+  });
+
+  // 9. Current Focus & Next Steps
+  const rec = base.recommendation;
+  const currentFocus = rec
+    ? {
+        conceptId: rec.conceptId,
+        conceptName: rec.conceptName,
+        description: graph?.concepts.find((c) => c.id === rec.conceptId)?.name ?? "",
+        reason: rec.reason,
+        storedMastery: rec.storedMastery,
+        predictedSuccess: rec.predictedSuccess,
+        prerequisites: (rec.prerequisites ?? []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          ready: p.ready,
+          storedMastery: p.storedMastery,
+        })),
+        alternatives: rec.alternatives,
+      }
+    : null;
+
+  const nextAction = rec
+    ? {
+        activityType: rec.activityType ?? "practice",
+        activityTitle: rec.activityTitle ?? `Master ${rec.conceptName}`,
+        actionLabel: rec.actionLabel ?? "Continue Learning",
+        badgeLabel: rec.badgeLabel ?? "Recommended Next Step",
+        href: rec.href ?? (rec.lesson ? `/learn/${rec.lesson.id}` : "/practice"),
+        reason: rec.reason,
+      }
+    : null;
+
+  // 10. Unified Activity Feed
+  type FeedItem = StudentDashboardFullView["activityFeed"][number];
+  const feed: FeedItem[] = [];
+
+  for (const att of base.attempts.slice(0, 5)) {
+    feed.push({
+      id: `att-${att.id}`,
+      type: "submission",
+      title: att.statement,
+      timestamp: att.at,
+      detail:
+        att.passed !== null && att.total !== null
+          ? `${att.passed}/${att.total} hidden tests passed (${Math.round((att.passRate ?? 0) * 100)}%)`
+          : "Graded solution evaluated",
+      badge: att.passRate !== null && att.passRate >= 0.8 ? "Passed" : "Needs Fix",
+      href: att.replayHref ?? undefined,
+    });
+  }
+
+  // Fetch recent lesson activities from classroomEvents
+  const recentClassEvents = await db
+    .select({
+      id: classroomEvents.id,
+      type: classroomEvents.type,
+      createdAt: classroomEvents.createdAt,
+      lessonTitle: lessons.title,
+    })
+    .from(classroomEvents)
+    .innerJoin(lessons, eq(lessons.id, classroomEvents.lessonId))
+    .where(eq(classroomEvents.studentId, studentId))
+    .orderBy(desc(classroomEvents.createdAt))
+    .limit(4);
+
+  for (const ev of recentClassEvents) {
+    const isDone = ev.type === "lesson_complete";
+    feed.push({
+      id: `ev-${ev.id}`,
+      type: "lesson",
+      title: ev.lessonTitle,
+      timestamp: formatUtc(ev.createdAt),
+      detail: isDone ? "Completed full interactive lesson" : "Progressed through interactive simulation",
+      badge: isDone ? "Completed" : "Engaged",
+    });
+  }
+
+  for (const r of base.routing.slice(0, 3)) {
+    feed.push({
+      id: `route-${r.at}-${r.reason.slice(0, 20)}`,
+      type: "routing",
+      title: "Adaptive Calibration Update",
+      timestamp: r.at,
+      detail: r.reason,
+      badge: "Selector",
+    });
+  }
+
+  // Sort feed descending by timestamp
+  feed.sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+
+  return {
+    student: { id: studentId, name: studentName },
+    batch: batchInfo,
+    module: base.module,
+    overview: {
+      totalConcepts,
+      masteredConcepts: masteredCount,
+      developingConcepts: developingCount,
+      unassessedConcepts: unassessedCount,
+      courseCompletionRate,
+      averageMastery: avgMastery,
+      standingLabel,
+      bktConfidence: 0.85,
+    },
+    assignments: {
+      totalCount: assignmentItems.length,
+      completedCount: completedAssignmentsCount,
+      completionRate: assignmentCompletionRate,
+      passRate: base.attempts[0]?.passRate ?? null,
+      items: assignmentItems,
+    },
+    currentFocus,
+    nextAction,
+    concepts: base.concepts,
+    roadmapChart,
+    recommendedLessons,
+    leaderboard: {
+      course: courseLeaderboard,
+      assignment: assignmentLeaderboard,
+      currentStudentRanks: {
+        courseRank: currentCourseRank,
+        courseTotal: courseLeaderboard.length,
+        assignmentRank: currentAssignmentRank,
+        assignmentTotal: assignmentLeaderboard.length,
+      },
+    },
+    attempts: base.attempts,
+    activityFeed: feed.slice(0, 10),
+  };
 }

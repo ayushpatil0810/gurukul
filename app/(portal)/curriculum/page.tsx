@@ -5,22 +5,27 @@ import { db } from "@/db";
 import { batches, modules } from "@/db/schema";
 import { requireAuth } from "@/lib/auth-session";
 import { getActor } from "@/lib/auth/actor";
-import { listCourses, getCourseDetail } from "@/lib/services/courses";
+import { listCourses } from "@/lib/services/courses";
 import { CourseHub } from "@/components/courses/course-hub";
-import { StudentSyllabusView } from "@/components/courses/student-syllabus-view";
+import { getStudentCurriculumRoadmap } from "@/lib/services/concepts";
+import { StudentConceptMapView } from "@/components/curriculum/student-concept-map";
 
 export const metadata: Metadata = {
-  title: "Course Management",
+  title: "Course Management & Concept Map",
+  description:
+    "Interactive course management and concept map roadmaps. Track module progress, prerequisite dependencies, and topological learning sequences.",
 };
 
-async function CurriculumScreen() {
+async function CurriculumScreen({ preferredModuleId }: { preferredModuleId?: string }) {
   await requireAuth();
   const actor = await getActor();
   if (!actor?.instituteId) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Your account is not assigned to an institute yet.
-      </p>
+      <div className="rounded-xl border border-border bg-card p-6 text-center">
+        <p className="text-sm text-muted-foreground">
+          Your account is not assigned to an institute yet.
+        </p>
+      </div>
     );
   }
 
@@ -50,32 +55,34 @@ async function CurriculumScreen() {
     );
   }
 
-  // Student perspective
-  const studentCourses = await listCourses(actor, { status: "published" });
-  let initialDetail = null;
-  if (studentCourses.length > 0 && studentCourses[0]) {
-    try {
-      initialDetail = await getCourseDetail(actor, studentCourses[0].id);
-    } catch {
-      // Fallback
-    }
-  }
-
-  return <StudentSyllabusView courses={studentCourses} initialDetail={initialDetail} />;
+  // Student perspective: Full visual interactive concept map & topological roadmap
+  const roadmapView = await getStudentCurriculumRoadmap(actor, preferredModuleId);
+  return <StudentConceptMapView view={roadmapView} />;
 }
 
-export default function CurriculumPage() {
+export default async function CurriculumPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ moduleId?: string; course?: string }>;
+}) {
+  const query = await searchParams;
+  const preferredModuleId = query?.moduleId ?? query?.course;
+
   return (
-    <div className="px-4 md:px-6 py-6 pb-16">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto">
       <Suspense
         fallback={
-          <div className="p-8 text-sm text-muted-foreground animate-pulse">
-            Loading course management & curriculum tracks...
+          <div className="flex h-96 w-full items-center justify-center rounded-xl border border-border bg-card p-8">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <span className="size-3 rounded-full bg-primary animate-ping" />
+              <span>Loading curriculum roadmap and course management…</span>
+            </div>
           </div>
         }
       >
-        <CurriculumScreen />
+        <CurriculumScreen preferredModuleId={preferredModuleId} />
       </Suspense>
     </div>
   );
 }
+

@@ -493,35 +493,73 @@ export function PracticeWorkspace({
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       {visibleResults ? (
-        <section className="space-y-2">
-          <h3 className="font-medium">Run</h3>
-          {visibleResults.map((test) => (
-            <article key={test.id} className="rounded-md border border-border p-3 text-sm">
-              <p>
-                {test.passed ? "Passed" : test.message} · {test.durationMs} ms
-              </p>
-              {test.stdout ? <pre className="mt-2 overflow-auto">{test.stdout}</pre> : null}
-              {test.stderr ? <pre className="mt-2 overflow-auto text-red-700">{test.stderr}</pre> : null}
-            </article>
-          ))}
+        <section className="space-y-3 rounded-xl border border-border/70 bg-card p-5 shadow-xs">
+          <div className="flex items-center justify-between border-b border-border/60 pb-2">
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">Sample Test Results</h3>
+            <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+              {visibleResults.filter((t) => t.passed).length} of {visibleResults.length} passed
+            </span>
+          </div>
+          <div className="space-y-2.5">
+            {visibleResults.map((test) => (
+              <article key={test.id} className="rounded-lg border border-border/70 bg-background/50 p-3.5 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${
+                      test.passed
+                        ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                        : "border border-destructive/20 bg-destructive/10 text-destructive"
+                    }`}
+                  >
+                    {test.passed ? "Passed" : test.message}
+                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground">{test.durationMs} ms</span>
+                </div>
+                {test.stdout ? (
+                  <pre className="overflow-auto rounded-md bg-zinc-950 p-2.5 font-mono text-xs text-zinc-200 border border-border/60">{test.stdout}</pre>
+                ) : null}
+                {test.stderr ? (
+                  <pre className="overflow-auto rounded-md bg-destructive/10 p-2.5 font-mono text-xs text-destructive border border-destructive/20">{test.stderr}</pre>
+                ) : null}
+              </article>
+            ))}
+          </div>
         </section>
       ) : null}
 
       {submitResult ? (
-        <section className="rounded-lg border border-border p-4 text-sm">
-          <h3 className="font-medium">
-            Submit · {submitResult.passed}/{submitResult.total} hidden tests passed
-          </h3>
-          <ul className="mt-2 space-y-1">
+        <section className="rounded-xl border border-border/70 bg-card p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-border/60 pb-2">
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+              Assessment Submission · {submitResult.passed}/{submitResult.total} Hidden Tests Passed
+            </h3>
+            <span
+              className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
+                submitResult.correct
+                  ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : "border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+              }`}
+            >
+              {submitResult.correct ? "All Passed" : "Partial Pass"}
+            </span>
+          </div>
+          <ul className="space-y-1.5 text-xs">
             {submitResult.tests.map((test, index) => (
-              <li key={test.id}>
-                Test {index + 1}: {test.passed ? "passed" : `${test.category}. ${test.message}`}
+              <li key={test.id} className="flex items-center justify-between rounded-md border border-border/60 bg-background/50 px-3 py-1.5">
+                <span className="font-medium text-foreground">Hidden Test {index + 1}</span>
+                <span
+                  className={`font-semibold text-[11px] ${
+                    test.passed ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+                  }`}
+                >
+                  {test.passed ? "Passed" : `${test.category}. ${test.message}`}
+                </span>
               </li>
             ))}
           </ul>
           {submitResult.mastery.map((update, index) => (
-            <p key={index} className="mt-2">
-              Mastery moved from {update.before.toFixed(2)} to {update.after.toFixed(2)}.
+            <p key={index} className="pt-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              BKT Mastery updated from {update.before.toFixed(2)} to {update.after.toFixed(2)}.
             </p>
           ))}
         </section>

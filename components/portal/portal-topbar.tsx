@@ -14,8 +14,10 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 
 const NAV_ITEMS: { href: string; name: string; icon: typeof LayoutDashboard }[] = [
   { href: "/dashboard", name: "Mastery Dashboard", icon: LayoutDashboard },
-  { href: "/curriculum", name: "Course Management", icon: BookOpen },
+  { href: "/curriculum", name: "Course Management", icon: Network },
+  { href: "/learn", name: "Learn Module", icon: BookOpen },
   { href: "/practice", name: "Practice Lab", icon: Code2 },
+  { href: "/assessment", name: "Online Assessment (OA)", icon: ShieldAlert },
   { href: "/studio", name: "Lesson Studio", icon: BookOpen },
   { href: "/questions", name: "Question Bank", icon: HelpCircle },
   { href: "/replay", name: "Session Replay", icon: History },
@@ -71,7 +73,7 @@ export function PortalTopbar() {
   }, []);
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/90 px-4 backdrop-blur-md md:px-6">
+    <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border/70 bg-background/90 px-4 backdrop-blur-md md:px-6">
       {isMobileSearchOpen ? (
         <div className="flex w-full items-center gap-2 md:hidden">
           <InputGroup className="h-9 flex-1 rounded-lg border-none bg-secondary py-1 pr-2 pl-3">
@@ -105,16 +107,17 @@ export function PortalTopbar() {
               size="icon-sm"
               className="shrink-0 [&_svg]:size-4!"
             />
-            <div className="hidden items-center gap-4 sm:flex">
+            <div className="h-4 w-px bg-border/70 hidden sm:block" />
+            <div className="hidden items-center gap-3 sm:flex">
               <div className="flex items-center gap-2">
                 <CurrentPageIcon className="size-4 text-primary" />
-                <span className="text-base font-semibold leading-none tracking-tight">
+                <span className="text-sm font-semibold leading-none tracking-tight text-foreground">
                   {currentPage.name}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-muted-foreground font-mono">
+              <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2.5 py-0.5">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[11px] text-muted-foreground font-mono">
                   Telemetry <span className="text-foreground/80 font-medium">Live</span>
                 </span>
               </div>

@@ -26,7 +26,13 @@ export function Navbar() {
     { href: "/", label: "Home" },
     ...(session?.user ? [{ href: "/curriculum", label: "Concept Map" }] : []),
     ...(session?.user ? [{ href: "/dashboard", label: "Dashboard" }] : []),
-    ...(role === "student" ? [{ href: "/practice", label: "Practice" }] : []),
+    ...(role === "student"
+      ? [
+          { href: "/learn", label: "Learn" },
+          { href: "/practice", label: "Practice" },
+          { href: "/assessment", label: "Assessment" },
+        ]
+      : []),
     ...(role === "trainer" || role === "admin" ? [{ href: "/studio", label: "Lesson Studio" }] : []),
     ...(role === "trainer" || role === "admin" ? [{ href: "/questions", label: "Questions" }] : []),
     ...(role === "trainer" || role === "admin" ? [{ href: "/replay", label: "Replay" }] : []),
@@ -34,7 +40,7 @@ export function Navbar() {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 min-w-0 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-6">
           <Link

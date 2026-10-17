@@ -644,7 +644,7 @@ function AttemptTableWithDrawer({
 // STUDENT LEARNING VIEW
 // ==========================================
 
-export function StudentLearning({
+function StudentLearning({
   view,
   analytics,
 }: {
@@ -1238,12 +1238,20 @@ function Recommendation({
               </Link>
             ) : null}
             {practice ? (
-              <Link
-                className="text-primary hover:underline underline-offset-4 inline-flex items-center gap-1 font-medium"
-                href="/practice"
-              >
-                <Code2 className="size-3.5" /> Practice interactive questions
-              </Link>
+              <div className="flex flex-col gap-1.5 pt-1">
+                <Link
+                  className="text-primary hover:underline underline-offset-4 inline-flex items-center gap-1.5 font-medium text-xs"
+                  href="/learn"
+                >
+                  <BookOpen className="size-3.5" /> Open Learn Module (Concepts & Quizzes)
+                </Link>
+                <Link
+                  className="text-primary hover:underline underline-offset-4 inline-flex items-center gap-1.5 font-medium text-xs"
+                  href="/practice"
+                >
+                  <Code2 className="size-3.5" /> Continue in Practice Lab
+                </Link>
+              </div>
             ) : null}
           </div>
         </div>
@@ -1572,3 +1580,4 @@ function hiddenText(attempt: AttemptDashboardRow): string {
   if (attempt.passRate === null) return "No score stored";
   return formatMastery(attempt.passRate);
 }
+

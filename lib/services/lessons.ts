@@ -240,20 +240,26 @@ export async function readLessonForAuthor(actor: Actor, lessonId: string) {
   return toAuthorView(await loadOwned(actor, lessonId));
 }
 
-export async function readLessonForStudent(actor: Actor, lessonId: string): Promise<LessonStudentView> {
+export async function readLessonForStudent(
+  actor: Actor,
+  lessonId: string,
+  options?: { allowAllPublished?: boolean },
+): Promise<LessonStudentView> {
   if (actor.role !== "student" || !actor.instituteId) throw AppError.forbidden("Lessons are opened from your own dashboard");
   const [row] = await db.select().from(lessons).where(eq(lessons.id, lessonId)).limit(1);
   if (!row || row.instituteId !== actor.instituteId || row.status !== "published") {
     throw AppError.notFound("Lesson not found");
   }
-  let recommended: string;
-  try {
-    recommended = (await previewRoute(actor.id, actor.instituteId)).decision.conceptId;
-  } catch (error) {
-    if (error instanceof AppError && error.statusCode === 404) throw AppError.notFound("Lesson not found");
-    throw error;
+  if (!options?.allowAllPublished) {
+    let recommended: string;
+    try {
+      recommended = (await previewRoute(actor.id, actor.instituteId)).decision.conceptId;
+    } catch (error) {
+      if (error instanceof AppError && error.statusCode === 404) throw AppError.notFound("Lesson not found");
+      throw error;
+    }
+    if (row.conceptId !== recommended) throw AppError.notFound("Lesson not found");
   }
-  if (row.conceptId !== recommended) throw AppError.notFound("Lesson not found");
   const [concept] = await db.select({ name: concepts.name }).from(concepts).where(eq(concepts.id, row.conceptId)).limit(1);
   const language = parseLanguageDirective(row.languageDirective);
   return {
