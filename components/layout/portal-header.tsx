@@ -12,7 +12,9 @@ import { Separator } from "@/components/ui/separator";
 const ROUTE_TITLES: Record<string, { section: string; title: string }> = {
   "/dashboard": { section: "Workspace", title: "Mastery Dashboard" },
   "/curriculum": { section: "Curriculum", title: "Concept Map" },
-  "/practice": { section: "Assessment", title: "Practice Workspace" },
+  "/learn": { section: "Learning", title: "Learn Module" },
+  "/practice": { section: "Practice", title: "Practice Lab" },
+  "/assessment": { section: "Assessment", title: "Online Assessment (OA)" },
   "/studio": { section: "Authoring", title: "Lesson Studio" },
   "/questions": { section: "Authoring", title: "Question Bank" },
   "/replay": { section: "Integrity", title: "Session Replay" },

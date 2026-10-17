@@ -81,10 +81,22 @@ export function AppSidebar() {
 
   const studentNav = [
     {
-      title: "Practice & Run",
+      title: "Learn Module",
+      href: "/learn",
+      icon: BookOpen,
+      match: (path: string) => path === "/learn" || path.startsWith("/learn/"),
+    },
+    {
+      title: "Practice Lab",
       href: "/practice",
       icon: Code2,
       match: (path: string) => path === "/practice" || path.startsWith("/practice/"),
+    },
+    {
+      title: "Online Assessment (OA)",
+      href: "/assessment",
+      icon: ShieldAlert,
+      match: (path: string) => path === "/assessment" || path.startsWith("/assessment/"),
     },
   ];
 
@@ -175,7 +187,7 @@ export function AppSidebar() {
         {/* Student Section */}
         {isStudent ? (
           <SidebarGroup>
-            <SidebarGroupLabel>Assessment</SidebarGroupLabel>
+            <SidebarGroupLabel>Learning & Assessment</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {studentNav.map((item) => {

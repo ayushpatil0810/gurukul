@@ -371,8 +371,15 @@ function Recommendation({ recommendation, practice = false }: { recommendation: 
             ) : null}
             {practice ? (
               <p>
+                <Link className="underline-offset-4 hover:underline text-xs text-primary font-medium inline-flex items-center gap-1" href="/learn">
+                  <span>🎓</span> Open Learn Module (All Concepts & Quizzes)
+                </Link>
+              </p>
+            ) : null}
+            {practice ? (
+              <p>
                 <Link className="underline-offset-4 hover:underline text-xs text-primary font-medium inline-flex items-center gap-1" href="/practice">
-                  <span>💻</span> Continue in Practice
+                  <span>💻</span> Continue in Practice Lab
                 </Link>
               </p>
             ) : null}

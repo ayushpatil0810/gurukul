@@ -24,7 +24,7 @@ async function LessonScreen({
   let denied: string | null = null;
   let lesson: Awaited<ReturnType<typeof readLessonForStudent>> | null = null;
   try {
-    lesson = await readLessonForStudent(actor, id);
+    lesson = await readLessonForStudent(actor, id, { allowAllPublished: true });
   } catch (error) {
     if (error instanceof AppError && (error.statusCode === 403 || error.statusCode === 404)) denied = error.message;
     else throw error;
@@ -33,11 +33,15 @@ async function LessonScreen({
   if (!lesson) return null;
   return (
     <article className="space-y-6">
-      <p className="text-sm">
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <Link className="inline-flex items-center gap-1 text-primary hover:underline underline-offset-4 font-semibold" href="/learn">
+          <span aria-hidden="true">&larr;</span> Back to Learn Module
+        </Link>
+        <span>·</span>
         <Link className="underline-offset-4 hover:underline" href="/dashboard">
           Dashboard
         </Link>
-      </p>
+      </div>
       <header>
         <p className="text-sm">{lesson.conceptName}</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-balance">{lesson.title}</h1>
