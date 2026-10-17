@@ -34,7 +34,9 @@ export type ReviewDisposition = "dismissed" | "needs_viva" | "escalated";
 export type ReviewQueueItem = {
   id: string;
   sessionId: string;
+  studentId: string;
   studentName: string;
+  studentEmail?: string;
   batchName: string | null;
   questionStatement: string;
   type: string;
@@ -45,6 +47,8 @@ export type ReviewQueueItem = {
   tEnd: number;
   explanation: string;
   replayHref: string;
+  createdAt?: string;
+  metrics?: Record<string, unknown>;
 };
 
 export type SignalReviewRecord = {
@@ -238,6 +242,7 @@ export async function listReviewQueue(
       sessionId: signals.sessionId,
       studentId: signals.studentId,
       studentName: user.name,
+      studentEmail: user.email,
       questionStatement: questions.statement,
       type: signals.type,
       strength: signals.strength,
@@ -246,6 +251,8 @@ export async function listReviewQueue(
       tStart: signals.tStart,
       tEnd: signals.tEnd,
       explanation: signals.explanation,
+      metricsJson: signals.metricsJson,
+      createdAt: signals.createdAt,
     })
     .from(signals)
     .innerJoin(user, eq(user.id, signals.studentId))
@@ -261,7 +268,9 @@ export async function listReviewQueue(
   return rows.map((row) => ({
     id: row.id,
     sessionId: row.sessionId,
+    studentId: row.studentId,
     studentName: row.studentName,
+    studentEmail: row.studentEmail,
     batchName: batchNames.get(row.studentId) ?? null,
     questionStatement: row.questionStatement,
     type: row.type,
@@ -272,6 +281,8 @@ export async function listReviewQueue(
     tEnd: row.tEnd,
     explanation: row.explanation,
     replayHref: replayHref(row.sessionId, row.tStart, row.tEnd),
+    createdAt: row.createdAt ? row.createdAt.toISOString() : undefined,
+    metrics: row.metricsJson as Record<string, unknown> | undefined,
   }));
 }
 
@@ -322,6 +333,7 @@ export async function readSignal(actor: Actor, signalId: string): Promise<Signal
   return {
     id: loaded.id,
     sessionId: loaded.sessionId,
+    studentId: loaded.studentId,
     studentName: loaded.studentName,
     batchName: batchNames.get(loaded.studentId) ?? null,
     questionStatement: loaded.questionStatement,

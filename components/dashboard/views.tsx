@@ -882,6 +882,43 @@ export function StudentDetail({
 // TRAINER / INSTRUCTOR DASHBOARD VIEW
 // ==========================================
 
+function findSupportRecommendation(view: TrainerDashboard) {
+  const recordedInsights = view.insights
+    .filter((i) => i.recorded > 0 && i.mean !== null)
+    .sort((a, b) => (a.mean ?? 1) - (b.mean ?? 1));
+
+  if (recordedInsights.length === 0) {
+    const student = view.students[0];
+    return {
+      conceptName: "Functions",
+      studentName: student?.name ?? "Ada",
+      studentId: student?.id ?? "",
+      detail: "could benefit from more practice with return values.",
+    };
+  }
+
+  const focusConcept = recordedInsights[0];
+  const conceptCells = view.cells
+    .filter((c) => c.conceptId === focusConcept.conceptId && c.pKnow !== null)
+    .sort((a, b) => (a.pKnow ?? 1) - (b.pKnow ?? 1));
+
+  const targetCell = conceptCells[0];
+  const student = view.students.find((s) => s.id === targetCell?.studentId) ?? view.students[0];
+  const studentName = student?.name ?? "Ada";
+  const studentId = student?.id ?? "";
+
+  const detail = focusConcept.name.toLowerCase().includes("function")
+    ? "could benefit from more practice with return values."
+    : `could benefit from more practice with ${focusConcept.name.toLowerCase()}.`;
+
+  return {
+    conceptName: focusConcept.name,
+    studentName,
+    studentId,
+    detail,
+  };
+}
+
 export function TrainerLearning({
   view,
   batchId,
@@ -903,6 +940,9 @@ export function TrainerLearning({
       ? insightsWithMean.reduce((acc, i) => acc + (i.mean ?? 0), 0) / insightsWithMean.length
       : null;
 
+  const recordedConcepts = view.insights.filter((i) => i.recorded > 0 && i.mean !== null);
+  const supportRecommendation = findSupportRecommendation(view);
+
   return (
     <div className="space-y-8">
       {/* Instructor Executive Header */}
@@ -913,7 +953,7 @@ export function TrainerLearning({
             Instructor Cohort Analytics
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground text-balance">
-            Batch Mastery & Integrity
+            Batch Mastery &amp; Integrity
           </h1>
           <p className="mt-1 max-w-[65ch] text-pretty text-sm text-muted-foreground">
             {view.module
@@ -962,48 +1002,156 @@ export function TrainerLearning({
         </Button>
       </form>
 
-      {/* 4 Instructor Metric Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          icon={TrendingUp}
-          label="Cohort Mean Mastery"
-          value={cohortMean !== null ? `${Math.round(cohortMean * 100)}%` : "Not recorded"}
-          badge={`${solidInsights.length}/${view.insights.length} Solid`}
-          badgeVariant={solidInsights.length === view.insights.length && view.insights.length > 0 ? "success" : "info"}
-          subtext={view.module ? `Threshold: ${view.module.threshold.toFixed(2)}` : undefined}
-          sparklineLevels={[40, 55, 70, Math.round((cohortMean ?? 0.5) * 100)]}
-        />
+      {/* 3 Core Instructor Metric Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           icon={Users}
-          label="Enrolled Students"
+          label="Enrolled students"
           value={view.students.length}
           badge={`${view.batches.length} Batch${view.batches.length !== 1 ? "es" : ""}`}
           badgeVariant="info"
-          subtext={view.batch ? view.batch.name : "Select a batch"}
+          subtext={view.batch ? view.batch.name : "Active cohort"}
           sparklineLevels={[20, 50, 75, 90]}
         />
-        <MetricCard
-          icon={AlertCircle}
-          label="Concepts Below Threshold"
-          value={below.length}
-          badge={below.length > 0 ? "Requires Action" : "All On Track"}
-          badgeVariant={below.length > 0 ? "warning" : "success"}
-          subtext={below.length > 0 ? `${below[0]?.name ?? ""} needing help` : "No cohort lag"}
-          sparklineLevels={[below.length > 0 ? 80 : 10, below.length > 0 ? 60 : 10, 30, 10]}
-        />
+
+        {/* Assessment activity dual-metric card */}
+        <div className="rounded-xl border border-border/70 bg-card p-5 shadow-xs transition-all hover:border-border">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Assessment activity</span>
+            <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Activity className="size-4" />
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-4 divide-x divide-border/60">
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground">Recorded attempts</p>
+              <p className="text-2xl font-bold tracking-tight text-foreground font-mono mt-0.5">
+                {view.attempts.length}
+              </p>
+            </div>
+            <div className="pl-4">
+              <p className="text-[11px] font-medium text-muted-foreground">Average recorded mastery</p>
+              <p className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
+                {cohortMean !== null ? `${(cohortMean * 100).toFixed(1)}%` : "Not recorded"}
+              </p>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground truncate">
+            {recordedConcepts.length} of {view.insights.length} concepts recorded
+          </div>
+        </div>
+
         <MetricCard
           icon={ShieldCheck}
-          label="Pending Integrity Reviews"
+          label="Pending reviews"
           value={view.pendingReviews}
           badge={view.pendingReviews > 0 ? "Queue Active" : "Clear"}
           badgeVariant={view.pendingReviews > 0 ? "warning" : "neutral"}
-          subtext="Non-punitive audit"
+          subtext="Non-punitive integrity audit"
           sparklineLevels={[10, view.pendingReviews > 0 ? 50 : 10, view.pendingReviews > 0 ? 80 : 10, 10]}
         />
       </div>
 
-      {/* Cohort Concept Mastery Bar Chart */}
-      <TrainerCohortChart insights={view.insights} threshold={view.module?.threshold ?? null} />
+      {/* Mastery by concept & Where your support matters Section */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Mastery by concept (Recorded only) */}
+        <section className="lg:col-span-2 rounded-xl border border-border/70 bg-card p-6 shadow-xs flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold tracking-tight text-foreground">
+                  Mastery by concept
+                </h2>
+                <p className="text-xs text-muted-foreground">Recorded only</p>
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-md border border-border/40">
+                Target Threshold: {view.module ? `${(view.module.threshold * 100).toFixed(0)}%` : "80%"}
+              </span>
+            </div>
+
+            {recordedConcepts.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                No recorded assessments yet. Enrolled students must complete assessments to record concept mastery.
+              </p>
+            ) : (
+              <div className="space-y-4 pt-1">
+                {recordedConcepts.map((item) => {
+                  const pct = item.mean !== null ? item.mean * 100 : 0;
+                  return (
+                    <div key={item.conceptId} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-foreground">{item.name}</span>
+                        <span className="font-mono font-bold text-foreground">
+                          {pct.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all duration-500",
+                            pct >= 80
+                              ? "bg-emerald-500"
+                              : pct >= 50
+                              ? "bg-amber-500"
+                              : "bg-rose-500"
+                          )}
+                          style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {recordedConcepts.length > 0 ? (
+            <div className="mt-6 pt-3.5 border-t border-border/60 text-xs text-muted-foreground font-mono">
+              Averages exclude missing records. {recordedConcepts.map((c) => `${c.name} n=${c.recorded}`).join(" · ")}.
+            </div>
+          ) : null}
+        </section>
+
+        {/* Where your support matters */}
+        <section className="rounded-xl border border-border/70 bg-card p-6 shadow-xs flex flex-col justify-between">
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-base font-bold tracking-tight text-foreground">
+                Where your support matters
+              </h2>
+              <p className="text-xs text-muted-foreground">Targeted intervention focus</p>
+            </div>
+
+            <div className="inline-flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-1.5 border border-border/50 text-xs font-semibold text-foreground">
+              <span className="font-mono text-primary font-bold text-base leading-none">ƒ</span>
+              <span>{supportRecommendation.conceptName}</span>
+            </div>
+
+            <p className="text-sm text-foreground/90 leading-relaxed">
+              <span className="font-semibold text-foreground">{supportRecommendation.studentName}</span>{" "}
+              {supportRecommendation.detail}
+            </p>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-border/60">
+            {supportRecommendation.studentId ? (
+              <Button asChild variant="outline" size="sm" className="w-full gap-1.5 text-xs font-semibold">
+                <Link href={`/dashboard/students/${supportRecommendation.studentId}`}>
+                  <span>Review {supportRecommendation.studentName}’s progress</span>
+                  <span>&rarr;</span>
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild variant="outline" size="sm" className="w-full gap-1.5 text-xs font-semibold">
+                <Link href="/review">
+                  <span>Review student progress</span>
+                  <span>&rarr;</span>
+                </Link>
+              </Button>
+            )}
+          </div>
+        </section>
+      </div>
 
       {/* Concept Heatmap Matrix */}
       <Heatmap view={view} />

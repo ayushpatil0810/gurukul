@@ -163,73 +163,139 @@ export const studentCohortPerformance = [
   },
 ] as const;
 
+export const judgeParameters = [
+  {
+    param: "CPU Time Limit",
+    value: "2.0",
+    unit: "sec",
+    detail: "ulimit -t 2 (max 30s ceiling)",
+    icon: "Clock",
+    badge: "Enforced",
+    badgeColor: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  },
+  {
+    param: "Wall-Clock Timeout",
+    value: "5.0",
+    unit: "sec",
+    detail: "Host SIGKILL watchguard",
+    icon: "Timer",
+    badge: "Strict",
+    badgeColor: "text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20",
+  },
+  {
+    param: "Memory Limit",
+    value: "256",
+    unit: "MB",
+    detail: "--memory 256m (swap disabled)",
+    icon: "Cpu",
+    badge: "OOM Kill",
+    badgeColor: "text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20",
+  },
+  {
+    param: "Process / PID Limit",
+    value: "64",
+    unit: "pids",
+    detail: "--pids-limit 64 (fork bomb guard)",
+    icon: "Layers",
+    badge: "Protected",
+    badgeColor: "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20",
+  },
+  {
+    param: "Output Buffer Cap",
+    value: "64",
+    unit: "KB",
+    detail: "Stream truncated on overflow",
+    icon: "FileCode",
+    badge: "Capped",
+    badgeColor: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
+  },
+  {
+    param: "Scratch Tmpfs",
+    value: "16",
+    unit: "MB",
+    detail: "In-memory /sandbox:rw,exec,nosuid",
+    icon: "Database",
+    badge: "RAM-only",
+    badgeColor: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  },
+  {
+    param: "Network Mode",
+    value: "None",
+    unit: "airgap",
+    detail: "--network none (zero egress)",
+    icon: "WifiOff",
+    badge: "Airgapped",
+    badgeColor: "text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20",
+  },
+  {
+    param: "Security Kernel",
+    value: "gVisor",
+    unit: "runsc",
+    detail: "Seccomp BPF (SCMP_ACT_ERRNO)",
+    icon: "ShieldCheck",
+    badge: "Sandboxed",
+    badgeColor: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  },
+] as const;
+
+export const supportedRuntimes = [
+  {
+    name: "JavaScript / Node.js",
+    image: "node:22-bookworm-slim",
+    version: "Node.js v22 (V8 Engine)",
+    limits: "ulimit -t 2; exec node /sandbox/main.js",
+    color: "bg-amber-500",
+    runsPercent: "48%",
+    share: 48,
+  },
+  {
+    name: "C++ (Native)",
+    image: "gcc:14-bookworm",
+    version: "GCC 14 (C++17, -O2 -pipe)",
+    limits: "g++ -std=c++17 -O2; exec /sandbox/a.out",
+    color: "bg-blue-500",
+    runsPercent: "32%",
+    share: 32,
+  },
+  {
+    name: "Java (OpenJDK)",
+    image: "eclipse-temurin:21-jdk-jammy",
+    version: "Eclipse Temurin JDK 21",
+    limits: "javac; exec java -Xmx64m -Xms16m Main",
+    color: "bg-red-500",
+    runsPercent: "20%",
+    share: 20,
+  },
+] as const;
+
 export const sandboxResources = [
   {
     label: "Isolated Linux Containers",
     value: 78,
-    unit: "Active",
+    unit: "Pool Active",
     Icon: Server,
     color: "bg-[var(--dashboard-learning)]",
   },
   {
     label: "Worker Queue (BullMQ)",
     value: 64,
-    unit: "Load",
+    unit: "Queue Load",
     Icon: Cpu,
     color: "bg-[var(--dashboard-mastered)]",
   },
   {
     label: "Telemetry Event Buffer",
     value: 86,
-    unit: "Stored",
+    unit: "Buffer Health",
     Icon: Database,
     color: "bg-[var(--dashboard-secondary)]",
   },
   {
-    label: "Memory Ceiling Usage",
+    label: "Memory Ceiling Allocation",
     value: 52,
-    unit: "Quota",
+    unit: "Quota Used",
     Icon: Layers,
     color: "bg-[var(--dashboard-remediation)]",
-  },
-] as const;
-
-export const portalMetrics = [
-  {
-    label: "Average Mastery (BKT)",
-    value: "84",
-    suffix: "%",
-    trend: "+6.4% this cohort",
-    color: "bg-[var(--dashboard-mastered)]",
-    trendColor: "text-[var(--dashboard-mastered)]",
-    lastSixDays: [62, 68, 74, 79, 81, 84],
-  },
-  {
-    label: "Sandbox Executions",
-    value: "142",
-    suffix: "runs",
-    trend: "94% pass rate",
-    color: "bg-[var(--dashboard-learning)]",
-    trendColor: "text-[var(--dashboard-learning)]",
-    lastSixDays: [88, 112, 134, 128, 139, 142],
-  },
-  {
-    label: "Concept Syllabus Progress",
-    value: "18",
-    suffix: "/24",
-    trend: "Threshold 0.85 BKT",
-    color: "bg-[var(--dashboard-secondary)]",
-    trendColor: "text-[var(--dashboard-mastered)]",
-    lastSixDays: [10, 12, 14, 15, 17, 18],
-  },
-  {
-    label: "Integrity Verification",
-    value: "100",
-    suffix: "%",
-    trend: "0 flagged sessions",
-    color: "bg-[var(--dashboard-remediation)]",
-    trendColor: "text-[var(--dashboard-mastered)]",
-    lastSixDays: [99, 100, 100, 98, 100, 100],
   },
 ] as const;
 
@@ -237,7 +303,7 @@ export const portalTimelineRanges = [
   { value: "current-sprint", label: "Current Sprint (Sprint 14)" },
   { value: "last-sprint", label: "Last Sprint (Sprint 13)" },
   { value: "q3-cohort", label: "Q3 Engineering Cohort" },
-  { value: "all-time", label: "Cumulative Mastery" },
+  { value: "all-time", label: "Cumulative Sandbox Runs" },
 ] as const;
 
 export const weeklyVolumeData = [

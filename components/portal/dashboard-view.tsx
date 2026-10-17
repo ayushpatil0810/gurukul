@@ -4,31 +4,28 @@ import { useState } from "react";
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import {
+  Activity,
   CheckCircle2,
   Clock,
-  Code2,
-  FileDown,
+  Cpu,
+  Database,
+  FileCode,
   Layers,
-  Pencil,
   Play,
   Plus,
+  Server,
+  ShieldCheck,
   SlidersHorizontal,
   Terminal,
-  User,
-  X,
-  Activity,
-  ShieldCheck,
-  Cpu,
+  Timer,
+  WifiOff,
 } from "lucide-react";
 import type { TooltipContentProps } from "recharts";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   ResponsiveContainer,
-  ReferenceLine,
   Tooltip,
   XAxis,
   YAxis,
@@ -38,7 +35,6 @@ import {
   CalendarDotsIcon,
   CaretDownIcon,
   ClockIcon,
-  FileArrowUpIcon,
 } from "./portal-icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -50,22 +46,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
-  curriculumModuleLoad,
+  judgeParameters,
+  supportedRuntimes,
   recentAssessments,
   assessmentStatusFilters,
   filterAssessments,
-  studentCohortPerformance,
   sandboxResources,
-  portalMetrics,
   portalTimelineRanges,
   weeklyVolumeData,
   type AssessmentRow,
@@ -73,6 +67,17 @@ import {
   type AssessmentStatusFilter,
 } from "./portal-data";
 import { cn } from "cn";
+
+const paramIconMap = {
+  Clock,
+  Timer,
+  Cpu,
+  Layers,
+  FileCode,
+  Database,
+  WifiOff,
+  ShieldCheck,
+};
 
 const dashboardColors = {
   scheduled: "var(--dashboard-learning)",
@@ -83,9 +88,9 @@ const dashboardColors = {
 } as const;
 
 const chartSeries = [
-  { key: "scheduled", label: "Sandbox Runs", color: dashboardColors.scheduled },
-  { key: "completed", label: "Passed Assertions", color: dashboardColors.completed },
-  { key: "noShow", label: "Requires Fix", color: dashboardColors.noShow },
+  { key: "scheduled", label: "Total Runs", color: dashboardColors.scheduled },
+  { key: "completed", label: "Passed (Exit 0)", color: dashboardColors.completed },
+  { key: "noShow", label: "Failed / Error", color: dashboardColors.noShow },
 ] as const;
 
 const statusClassName: Record<AssessmentStatus, string> = {
@@ -135,28 +140,6 @@ function CardHeader({
   );
 }
 
-function MetricBars({
-  lastSixDays,
-  className,
-}: {
-  lastSixDays: readonly number[];
-  className: string;
-}) {
-  const maximum = Math.max(...lastSixDays, 1);
-
-  return (
-    <div className="flex h-7.5 w-10 shrink-0 items-end justify-between">
-      {lastSixDays.map((value, index) => (
-        <span
-          key={`${value}-${index}`}
-          className={cn("w-1.25 rounded-t-sm", className)}
-          style={{ height: `${(value / maximum) * 100}%` }}
-        />
-      ))}
-    </div>
-  );
-}
-
 function ChartTooltip({ active, payload, label }: Partial<TooltipContentProps>) {
   if (!active || !payload?.length) {
     return null;
@@ -190,13 +173,13 @@ function AssessmentVolumeCard() {
   return (
     <DashboardCard className="flex flex-col gap-4 pb-0">
       <CardHeader
-        title="Assessment & Sandbox Volume"
+        title="Sandbox Execution Volume & Verdicts"
         action={
           <Link
-            href="/curriculum"
+            href="/practice"
             className="flex items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:text-foreground hover:underline"
           >
-            <span>View Syllabus</span>
+            <span>Practice Lab</span>
             <ArrowUpRightIcon className="size-4" />
           </Link>
         }
@@ -298,78 +281,47 @@ function AssessmentVolumeCard() {
   );
 }
 
-function CurriculumModuleLoadCard() {
-  const totalWeight = curriculumModuleLoad.reduce(
-    (total, item) => total + item.value,
-    0
-  );
-
+function ConfiguredRuntimesCard() {
   return (
     <DashboardCard className="flex flex-col gap-4">
       <CardHeader
-        title="Curriculum Syllabus Load"
+        title="Configured Compiler Runtimes"
         action={
-          <Link
-            href="/curriculum"
-            className="flex items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:text-foreground hover:underline"
-          >
-            <span>DAG View</span>
-            <ArrowUpRightIcon className="size-4" />
-          </Link>
+          <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            3 Base Images Ready
+          </span>
         }
       />
 
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Active Topics Weighted</span>
-            <span className="font-semibold text-foreground">
-              {totalWeight} Concepts
-            </span>
-          </div>
-          <div className="flex h-5 items-start gap-1 overflow-hidden rounded-md bg-muted/40 p-0.5">
-            {curriculumModuleLoad.map((item, index) => (
-              <span
-                key={item.label}
-                className={cn(
-                  "dashboard-load-segment h-full min-w-3 shrink-0 rounded-xs",
-                  item.color
-                )}
-                style={
-                  {
-                    "--department-width": `${(item.value / totalWeight) * 100}%`,
-                    animationDelay: `${index * 80}ms`,
-                  } as CSSProperties
-                }
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3.5">
-          {curriculumModuleLoad.map((item) => (
-            <div
-              key={item.label}
-              className="flex min-w-0 items-center gap-2 text-xs"
-            >
-              <div className="flex min-w-0 shrink-0 items-center gap-2">
-                <span className={cn("size-3 rounded-xs shrink-0", item.color)} />
-                <span className="truncate font-medium text-foreground/85">
-                  {item.label}
+      <div className="flex flex-col gap-3">
+        {supportedRuntimes.map((runtime) => (
+          <div
+            key={runtime.name}
+            className="flex flex-col gap-1.5 rounded-lg border border-border/60 bg-muted/20 p-3"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className={cn("size-2 rounded-full", runtime.color)} />
+                <span className="text-xs font-semibold text-foreground">
+                  {runtime.name}
                 </span>
               </div>
-              <span className="min-w-0 flex-1 border-t border-dashed border-border" />
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="w-6 text-right font-semibold text-foreground">
-                  {item.value}
-                </span>
-                <span className="w-12 text-right text-muted-foreground font-mono">
-                  {item.percent}
-                </span>
-              </div>
+              <span className="text-[11px] font-mono font-medium text-muted-foreground">
+                {runtime.runsPercent} volume
+              </span>
             </div>
-          ))}
-        </div>
+
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
+              <span className="truncate">{runtime.image}</span>
+              <span className="shrink-0 text-foreground/80">{runtime.version}</span>
+            </div>
+
+            <div className="rounded bg-background/80 px-2 py-1 font-mono text-[10px] text-muted-foreground truncate border border-border/40">
+              <code>{runtime.limits}</code>
+            </div>
+          </div>
+        ))}
       </div>
     </DashboardCard>
   );
@@ -434,19 +386,40 @@ function AssessmentDetailsSheet({
               </div>
 
               {/* Execution Specs */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2.5">
                 <div className="rounded-lg border border-border bg-card p-3 space-y-1">
                   <span className="text-[11px] text-muted-foreground">Sandbox Time</span>
-                  <p className="text-base font-bold font-mono">{assessment.runtime}</p>
+                  <p className="text-sm font-bold font-mono">{assessment.runtime}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card p-3 space-y-1">
                   <span className="text-[11px] text-muted-foreground">Memory Ceiling</span>
-                  <p className="text-base font-bold font-mono">{assessment.memory}</p>
+                  <p className="text-sm font-bold font-mono">{assessment.memory}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card p-3 space-y-1">
-                  <span className="text-[11px] text-muted-foreground">BKT Delta</span>
-                  <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                    +0.12
+                  <span className="text-[11px] text-muted-foreground">Exit Code</span>
+                  <p
+                    className={cn(
+                      "text-sm font-bold font-mono",
+                      assessment.status === "Passed"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-amber-600 dark:text-amber-400"
+                    )}
+                  >
+                    {assessment.status === "Passed" ? "0 (OK)" : "65 (Err)"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3 space-y-1">
+                  <span className="text-[11px] text-muted-foreground">Process Limit</span>
+                  <p className="text-sm font-bold font-mono">1 / 64 PIDs</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3 space-y-1">
+                  <span className="text-[11px] text-muted-foreground">Network Mode</span>
+                  <p className="text-sm font-bold font-mono">Airgapped</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3 space-y-1">
+                  <span className="text-[11px] text-muted-foreground">Seccomp Filter</span>
+                  <p className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                    Enforced
                   </p>
                 </div>
               </div>
@@ -467,12 +440,21 @@ function AssessmentDetailsSheet({
                 </pre>
               </div>
 
-              {/* Routing Explanation */}
-              <div className="rounded-lg border border-border bg-card p-3.5 space-y-1 text-xs">
-                <span className="font-semibold text-foreground">Next Adaptation Decision</span>
-                <p className="text-muted-foreground leading-relaxed">
-                  Prerequisites satisfied with high posterior confidence. Scheduled for advanced
-                  multi-container container networking assessment.
+              {/* Sandbox Container Info */}
+              <div className="rounded-lg border border-border bg-card p-3.5 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Server className="size-3.5 text-primary" />
+                    <span>Container Sandbox Lifecycle</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    Ephemeral Auto-Destroyed
+                  </span>
+                </div>
+                <p className="text-muted-foreground leading-relaxed font-mono text-[11px]">
+                  Instance: portal-sbx-
+                  {assessment.student.toLowerCase().replace(/[^a-z]/g, "").slice(0, 8)} &bull;
+                  Runtime: gVisor (runsc) &bull; Scratch: tmpfs 16MB
                 </p>
               </div>
             </div>
@@ -583,58 +565,6 @@ function RecentAssessmentsTableCard({
   );
 }
 
-function StudentCohortCard() {
-  return (
-    <DashboardCard className="flex flex-col gap-3 px-0 pb-0">
-      <CardHeader
-        className="px-4"
-        title="Top Concept Mastery"
-        action={
-          <Link
-            href="/curriculum"
-            className="flex items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:text-foreground hover:underline"
-          >
-            <span>All students</span>
-            <ArrowUpRightIcon className="size-4" />
-          </Link>
-        }
-      />
-
-      <div className="flex flex-col divide-y divide-border/60">
-        {studentCohortPerformance.map((student) => (
-          <div
-            key={student.name}
-            className="flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Avatar size="sm" className="border border-border/60">
-                <AvatarImage src={student.avatar} alt={student.name} />
-                <AvatarFallback>{student.name[0]}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-foreground">
-                  {student.name}
-                </p>
-                <p className="truncate text-[11px] text-muted-foreground">
-                  {student.role}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-end flex-col">
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                {student.rating}
-              </span>
-              <span className="text-[10px] text-muted-foreground font-mono">
-                {student.points} pts
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </DashboardCard>
-  );
-}
-
 function SandboxResourceUsageCard() {
   return (
     <DashboardCard className="flex flex-col gap-4">
@@ -700,12 +630,20 @@ export function PortalDashboardView({
       {/* Greeting Header */}
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-border/60 pb-5">
         <div className="flex flex-col gap-1.5">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Good morning, {userName}
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Code Execution &amp; Sandbox Judge
+            </h1>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Engine Online (gVisor / Seccomp)
+            </span>
+          </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CalendarDotsIcon />
-            <span>Sprint 14 &bull; Engineering Assessment Cycle</span>
+            <Terminal className="size-3.5" />
+            <span>Judge0-Equivalent Hardened Sandbox</span>
+            <span>&bull;</span>
+            <span>Docker Engine 27.x</span>
             <span>&bull;</span>
             <span className="capitalize font-medium text-foreground/80">{role} Workspace</span>
           </div>
@@ -739,67 +677,84 @@ export function PortalDashboardView({
           </DropdownMenu>
 
           <Button asChild size="sm" className="h-9 gap-1.5 text-xs font-semibold shadow-xs">
-            <Link href={role === "student" ? "/practice" : "/studio/new"}>
-              <Plus className="size-4" />
-              <span>{role === "student" ? "Start Practice" : "New Lesson"}</span>
+            <Link href="/practice">
+              <Play className="size-4" />
+              <span>Launch Sandbox</span>
             </Link>
           </Button>
         </div>
       </section>
 
-      {/* 4 Metric Cards */}
-      <section>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {portalMetrics.map((metric) => (
-            <article
-              key={metric.label}
-              className="flex h-32 flex-col justify-between rounded-xl border border-border/70 bg-card p-4 shadow-xs"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="text-xs font-medium text-muted-foreground">
-                  {metric.label}
-                </h2>
-                <ClockIcon className="size-4 shrink-0 text-muted-foreground" />
-              </div>
+      {/* Judge Sandbox Execution Constraints & Parameters (Replaces generic metrics) */}
+      <section className="flex flex-col gap-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="size-4 text-primary" />
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">
+              Sandbox Runtime &amp; Security Constraints
+            </h2>
+          </div>
+          <span className="text-xs text-muted-foreground font-mono">
+            Active Profile: default-hardened.seccomp
+          </span>
+        </div>
 
-              <div className="flex items-end gap-1.5">
-                <div className="min-w-0 flex-1">
-                  <p className="text-2xl font-bold leading-none text-foreground font-mono">
-                    {metric.value}
-                    {metric.suffix ? (
-                      <span className="ml-0.5 text-sm font-normal text-muted-foreground">
-                        {metric.suffix}
-                      </span>
-                    ) : null}
-                  </p>
-                  <div className="mt-2 flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
-                    <ArrowUpRightIcon className={cn("size-3.5", metric.trendColor)} />
-                    <span className="text-foreground/90 font-medium">{metric.trend}</span>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+          {judgeParameters.map((param) => {
+            const Icon = paramIconMap[param.icon as keyof typeof paramIconMap] || SlidersHorizontal;
+            return (
+              <article
+                key={param.param}
+                className="group flex flex-col justify-between rounded-xl border border-border/70 bg-card p-3 shadow-xs transition-colors hover:border-border hover:bg-card/90"
+              >
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-muted text-foreground/80">
+                    <Icon className="size-3.5" />
                   </div>
+                  <span
+                    className={cn(
+                      "inline-flex rounded-full border px-1.5 py-0.2 text-[10px] font-semibold",
+                      param.badgeColor
+                    )}
+                  >
+                    {param.badge}
+                  </span>
                 </div>
-                <MetricBars
-                  lastSixDays={metric.lastSixDays}
-                  className={metric.color}
-                />
-              </div>
-            </article>
-          ))}
+
+                <div className="mt-3">
+                  <p className="text-[11px] font-medium text-muted-foreground truncate" title={param.param}>
+                    {param.param}
+                  </p>
+                  <div className="mt-0.5 flex items-baseline gap-1">
+                    <span className="text-lg font-bold font-mono text-foreground leading-none">
+                      {param.value}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground font-mono">
+                      {param.unit}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[10px] text-muted-foreground/80 font-mono truncate" title={param.detail}>
+                    {param.detail}
+                  </p>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 
-      {/* Charts Section */}
+      {/* Charts Section: Execution Volume & Compiler Runtimes */}
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
         <AssessmentVolumeCard />
-        <CurriculumModuleLoadCard />
+        <ConfiguredRuntimesCard />
       </section>
 
-      {/* Table & Resource Panels */}
+      {/* Table & Resource Panels: Live Evaluations & Infrastructure */}
       <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
         <RecentAssessmentsTableCard
           onSelectAssessment={(item) => setSelectedAssessment(item)}
         />
         <div className="grid min-w-0 gap-4 self-start">
-          <StudentCohortCard />
           <SandboxResourceUsageCard />
         </div>
       </section>

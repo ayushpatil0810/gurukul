@@ -60,21 +60,23 @@ async function DashboardScreen({
     );
   }
 
+  if (trainer) {
+    return (
+      <div className="px-4 md:px-6 py-6">
+        <TrainerLearning
+          batchId={query.batch}
+          moduleId={query.module}
+          view={trainer}
+          analytics={analytics}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Instructor / Admin Dashboard View */}
       <PortalDashboardView userName={actor.name} role={actor.role} />
-
-      <div className="px-4 md:px-6 pb-12">
-        {trainer ? (
-          <TrainerLearning
-            batchId={query.batch}
-            moduleId={query.module}
-            view={trainer}
-            analytics={analytics}
-          />
-        ) : null}
-      </div>
     </div>
   );
 }
