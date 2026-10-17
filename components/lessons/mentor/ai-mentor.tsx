@@ -16,6 +16,9 @@ export function AiMentor({
   activeSceneRole,
   selectedEntity = null,
   visibleLogs = null,
+  onMentorOpen,
+  onMentorAction,
+  onMentorReply,
 }: {
   lessonId: string;
   lessonTitle: string;
@@ -24,6 +27,9 @@ export function AiMentor({
   activeSceneRole: string;
   selectedEntity?: string | null;
   visibleLogs?: string | null;
+  onMentorOpen?: (sceneTitle: string) => void;
+  onMentorAction?: (action: "explain" | "hint" | "deep-dive", promptCategory?: string) => void;
+  onMentorReply?: (action: string, status: "success" | "fallback") => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -35,6 +41,14 @@ export function AiMentor({
   const [inputValue, setInputValue] = useState("");
   const [isPending, setIsPending] = useState(false);
 
+  function handleToggleOpen() {
+    setIsOpen((prev) => {
+      const next = !prev;
+      if (next) onMentorOpen?.(activeSceneTitle);
+      return next;
+    });
+  }
+
   async function sendAction(
     action: "explain" | "simplify" | "hint" | "explain_logs" | "example" | "quiz_me" | "freeform",
     userText?: string,
@@ -43,6 +57,9 @@ export function AiMentor({
     const newHistory: Message[] = [...messages, { role: "user", content: textToSend }];
     setMessages(newHistory);
     setIsPending(true);
+
+    const telemetryAction = action === "hint" ? "hint" : action === "example" || action === "quiz_me" ? "deep-dive" : "explain";
+    onMentorAction?.(telemetryAction, action);
 
     try {
       const response = await fetch(`/api/lessons/${lessonId}/mentor`, {
@@ -76,6 +93,7 @@ export function AiMentor({
             content: body.error?.message ?? "I could not respond at this time. Please try again.",
           },
         ]);
+        onMentorReply?.(action, "fallback");
         return;
       }
 
@@ -87,6 +105,7 @@ export function AiMentor({
           mode: data.mode,
         },
       ]);
+      onMentorReply?.(action, data.mode === "model" ? "success" : "fallback");
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -95,6 +114,7 @@ export function AiMentor({
           content: "Network error contacting mentor. Please verify your connection.",
         },
       ]);
+      onMentorReply?.(action, "fallback");
     } finally {
       setIsPending(false);
       setInputValue("");
@@ -123,9 +143,9 @@ export function AiMentor({
       {/* Floating Mentor Toggle Button */}
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggleOpen}
         aria-label="Toggle AI Learning Mentor panel"
-        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 hover:shadow-xl transition-all"
+        className="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-3.5 py-2 sm:px-4 sm:py-2.5 text-xs font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 hover:shadow-xl transition-all"
       >
         <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
         ✨ AI Mentor {isOpen ? "✕" : ""}
@@ -136,7 +156,7 @@ export function AiMentor({
         <aside
           role="complementary"
           aria-label="AI Learning Mentor chat"
-          className="fixed bottom-20 right-5 z-40 flex h-[500px] w-96 flex-col rounded-2xl border border-border bg-card/95 p-4 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-3 duration-200"
+          className="fixed bottom-16 right-3 sm:bottom-20 sm:right-5 z-40 flex h-[500px] max-h-[calc(100vh-5rem)] w-[calc(100vw-1.5rem)] sm:w-96 max-w-sm flex-col rounded-2xl border border-border bg-card/95 p-3.5 sm:p-4 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-3 duration-200"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border/60 pb-3">

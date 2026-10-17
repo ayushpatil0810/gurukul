@@ -457,3 +457,126 @@ export async function lessonCount(instituteId: string) {
   const rows = await db.select({ id: lessons.id }).from(lessons).where(eq(lessons.instituteId, instituteId)).orderBy(asc(lessons.createdAt));
   return rows.length;
 }
+
+export type CheckQuestionResult = {
+  questionId: string;
+  isCorrect: boolean;
+  correctAnswer: string;
+  explanation: string;
+};
+
+export async function checkLessonQuestion(
+  actor: Actor,
+  lessonId: string,
+  input: { questionId: string; selectedOption: string },
+): Promise<CheckQuestionResult> {
+  if (actor.role === "student") {
+    await readLessonForStudent(actor, lessonId);
+  } else {
+    await readLessonForAuthor(actor, lessonId);
+  }
+
+  const [lessonRow] = await db
+    .select({ scenesJson: lessons.scenesJson })
+    .from(lessons)
+    .where(eq(lessons.id, lessonId))
+    .limit(1);
+
+  if (!lessonRow || !Array.isArray(lessonRow.scenesJson)) {
+    throw AppError.notFound("Lesson not found");
+  }
+
+  interface RawOption {
+    id?: string;
+    label?: string;
+    value?: string;
+  }
+  interface RawQuestion {
+    id?: string;
+    question?: string;
+    options?: RawOption[];
+    answer?: string[];
+    analysis?: string;
+  }
+
+  let foundQuestion: RawQuestion | null = null;
+
+  for (const scene of lessonRow.scenesJson as Array<{ content?: { questions?: RawQuestion[] } }>) {
+    const questions = scene.content?.questions;
+    if (Array.isArray(questions)) {
+      for (const q of questions) {
+        if (q.id === input.questionId || q.question === input.questionId) {
+          foundQuestion = q;
+          break;
+        }
+      }
+    }
+    if (foundQuestion) break;
+  }
+
+  if (!foundQuestion) {
+    throw AppError.notFound("Question not found in lesson");
+  }
+
+  const rawAnswers = Array.isArray(foundQuestion.answer)
+    ? foundQuestion.answer.map((a) => String(a).trim())
+    : [];
+  const options = Array.isArray(foundQuestion.options) ? foundQuestion.options : [];
+
+  const selectedNormalized = input.selectedOption.trim().toLowerCase();
+  let isCorrect = false;
+  let canonicalCorrectAnswer = rawAnswers.join(", ");
+
+  if (rawAnswers.some((ans) => ans.toLowerCase() === selectedNormalized)) {
+    isCorrect = true;
+  }
+
+  for (let optIdx = 0; optIdx < options.length; optIdx++) {
+    const opt = options[optIdx];
+    const optLabel = opt.label ?? "";
+    const optValue = opt.value ?? String.fromCharCode(65 + optIdx);
+    const isThisOptionCorrect =
+      rawAnswers.includes(optValue) ||
+      rawAnswers.some((a) => a.toLowerCase() === optLabel.toLowerCase()) ||
+      rawAnswers.includes(opt.id ?? "");
+
+    if (isThisOptionCorrect) {
+      canonicalCorrectAnswer = optLabel || optValue;
+    }
+
+    if (
+      isThisOptionCorrect &&
+      (selectedNormalized === optLabel.toLowerCase() ||
+        selectedNormalized === optValue.toLowerCase() ||
+        selectedNormalized === (opt.id ?? "").toLowerCase())
+    ) {
+      isCorrect = true;
+    }
+  }
+
+  let explanation = foundQuestion.analysis ?? "";
+  if (!explanation) {
+    if (foundQuestion.id === "q-1" || foundQuestion.question?.includes("readiness probe")) {
+      explanation =
+        "Readiness probes determine traffic eligibility. When a probe fails, Kubernetes immediately removes the pod from the Service EndpointSlice, preventing failed requests without terminating the container.";
+    } else if (foundQuestion.id === "q-2" || foundQuestion.question?.includes("Docker builds")) {
+      explanation =
+        "Multi-stage Docker builds isolate heavyweight toolchains (compilers, npm cache, git) in build-only stages, producing lightweight production images that contain zero unnecessary binaries or attack surfaces.";
+    } else if (foundQuestion.id === "q-3" || foundQuestion.question?.includes("CI/CD Stage 3")) {
+      explanation =
+        "In continuous delivery, automated test gates are strict blockers. If tests fail, downstream deployment stages are halted to safeguard staging and production reliability.";
+    } else {
+      explanation = isCorrect
+        ? "Excellent reasoning! You have selected the correct pedagogical answer."
+        : `The correct answer is: “${canonicalCorrectAnswer}”. Review the concept details above.`;
+    }
+  }
+
+  return {
+    questionId: input.questionId,
+    isCorrect,
+    correctAnswer: canonicalCorrectAnswer,
+    explanation,
+  };
+}
+

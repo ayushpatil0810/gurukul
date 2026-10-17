@@ -33,10 +33,15 @@ import {
   type MasteryBand,
 } from "@/lib/engine/dashboard-bands";
 import { AppError } from "@/lib/errors";
-import { previewRoute } from "@/lib/services/assessment";
 import { publishedLessonForConcept } from "@/lib/services/lessons";
 import { listReviewQueue } from "@/lib/services/integrity";
 import { readStudentForActor } from "@/lib/services/students";
+import {
+  getAdaptiveRecommendation,
+  type AdaptiveActivityType,
+  type AdaptivePrerequisiteItem,
+  type AdaptiveEvidenceSummary,
+} from "@/lib/services/adaptive-loop";
 
 export type ConceptDashboardRow = {
   id: string;
@@ -71,6 +76,13 @@ export type RecommendationView = {
   hasQuestion: boolean;
   lesson: { id: string; title: string } | null;
   alternatives: { name: string; note: string; storedMastery: number | null }[];
+  activityType?: AdaptiveActivityType;
+  activityTitle?: string;
+  actionLabel?: string;
+  badgeLabel?: string;
+  href?: string | null;
+  prerequisites?: AdaptivePrerequisiteItem[];
+  evidenceSummary?: AdaptiveEvidenceSummary;
 };
 
 export type StudentDashboard = {
@@ -201,7 +213,7 @@ async function loadStudentDashboard(
   const instituteId = actor.instituteId;
   if (!instituteId) throw AppError.forbidden("Your account is not assigned to an institute");
   const graph = await loadGraph(instituteId, moduleId);
-  const recommendation = await recommendationFor(studentId, instituteId, moduleId, graph);
+  const recommendation = await recommendationFor(actor, studentId, instituteId, moduleId);
   if (!graph) {
     return {
       student: { id: studentId, name: studentName },
@@ -293,48 +305,44 @@ async function loadStudentDashboard(
 }
 
 async function recommendationFor(
+  actor: Actor,
   studentId: string,
   instituteId: string,
   moduleId: string | undefined,
-  graph: Graph | null,
 ): Promise<RecommendationView | null> {
   try {
-    const preview = await previewRoute(studentId, instituteId, moduleId);
-    const stored = new Map((graph?.concepts ?? []).map((concept) => [concept.id, concept]));
-    const masteryRows =
-      graph && graph.concepts.length > 0
-        ? await db
-            .select({ conceptId: masteryState.conceptId, pKnow: masteryState.pKnow })
-            .from(masteryState)
-            .where(
-              and(
-                eq(masteryState.studentId, studentId),
-                inArray(
-                  masteryState.conceptId,
-                  graph.concepts.map((concept) => concept.id),
-                ),
-              ),
-            )
-        : [];
-    const recorded = new Map(masteryRows.map((row) => [row.conceptId, row.pKnow]));
-    const chosen = stored.get(preview.decision.conceptId);
-    const lesson = await publishedLessonForConcept(instituteId, preview.decision.conceptId);
+    const adaptive = await getAdaptiveRecommendation(actor, { studentId, moduleId });
+    if (!adaptive.recommendation && !adaptive.concept) return null;
+
+    const chosenConceptId = adaptive.concept?.id ?? "";
+    const chosenStoredMastery = adaptive.mastery;
+    const lesson = await publishedLessonForConcept(instituteId, chosenConceptId);
+
     return {
-      conceptId: preview.decision.conceptId,
-      conceptName: chosen?.name ?? preview.decision.conceptId,
-      reason: preview.decision.reason,
-      storedMastery: recorded.has(preview.decision.conceptId) ? (recorded.get(preview.decision.conceptId) ?? null) : null,
-      predictedSuccess: preview.decision.predictedSuccess,
-      hasQuestion: preview.decision.questionId !== null,
+      conceptId: chosenConceptId,
+      conceptName: adaptive.concept?.name ?? chosenConceptId,
+      reason: adaptive.reason,
+      storedMastery: chosenStoredMastery,
+      predictedSuccess: adaptive.predictedSuccess,
+      hasQuestion:
+        adaptive.recommendation?.activityType === "practice" ||
+        adaptive.alternatives.some((alt) => alt.hasQuestion),
       lesson,
-      alternatives: preview.decision.alternatives.map((alternative) => ({
-        name: alternative.name,
-        note: alternative.note,
-        storedMastery: recorded.has(alternative.conceptId) ? (recorded.get(alternative.conceptId) ?? null) : null,
+      alternatives: adaptive.alternatives.map((alt) => ({
+        name: alt.name,
+        note: alt.note,
+        storedMastery: alt.storedMastery,
       })),
+      activityType: adaptive.recommendation?.activityType,
+      activityTitle: adaptive.recommendation?.title,
+      actionLabel: adaptive.recommendation?.actionLabel,
+      badgeLabel: adaptive.recommendation?.badgeLabel,
+      href: adaptive.recommendation?.href,
+      prerequisites: adaptive.prerequisites,
+      evidenceSummary: adaptive.evidenceSummary,
     };
   } catch (error) {
-    if (error instanceof AppError && error.statusCode === 404) return null;
+    if (error instanceof AppError && (error.statusCode === 404 || error.statusCode === 403)) return null;
     throw error;
   }
 }

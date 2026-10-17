@@ -9,8 +9,15 @@ import { LessonView } from "@/components/lessons/lesson-view";
 
 export const metadata: Metadata = { title: "Lesson" };
 
-async function LessonScreen({ params }: { params: Promise<{ id: string }> }) {
+async function LessonScreen({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ sessionId?: string }>;
+}) {
   const { id } = await params;
+  const { sessionId } = (await searchParams) ?? {};
   await requireAuth();
   const actor = await getActor();
   if (!actor) return null;
@@ -45,17 +52,25 @@ async function LessonScreen({ params }: { params: Promise<{ id: string }> }) {
         scenes={lesson.scenes}
         showAnswers={false}
         codeLanguage={lesson.codeLanguage}
+        sessionId={sessionId}
       />
     </article>
   );
 }
 
-export default function LearnPage({ params }: { params: Promise<{ id: string }> }) {
+export default function LearnPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ sessionId?: string }>;
+}) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <Suspense fallback={<p className="text-sm">Loading the lesson…</p>}>
-        <LessonScreen params={params} />
+        <LessonScreen params={params} searchParams={searchParams} />
       </Suspense>
     </div>
   );
 }
+

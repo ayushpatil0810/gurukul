@@ -298,8 +298,15 @@ export function k8sReducer(state: K8sClusterState, action: K8sAction): K8sCluste
 
 export function KubernetesLab({
   onInspectEntity,
+  onLabAction,
 }: {
   onInspectEntity?: (info: { name: string; status: string; logs: string }) => void;
+  onLabAction?: (
+    action: "scale" | "simulate_failure" | "recover" | "inspect_pod" | "reset",
+    replicas?: number,
+    podName?: string,
+    outcome?: "degraded" | "recovered" | "scaled" | "normal",
+  ) => void;
 }) {
   const [state, dispatch] = useReducer(k8sReducer, undefined, createInitialK8sState);
   const selectedPod = state.pods.find((p) => p.id === state.selectedPodId) ?? state.pods[0];
@@ -311,6 +318,7 @@ export function KubernetesLab({
       status: `${pod.status} (${pod.readyCount})`,
       logs: pod.events.slice(-2).join(" | "),
     });
+    onLabAction?.("inspect_pod", state.desiredReplicas, pod.name, "normal");
   }
 
   return (
@@ -347,7 +355,10 @@ export function KubernetesLab({
           </span>
           <button
             type="button"
-            onClick={() => dispatch({ type: "RESET" })}
+            onClick={() => {
+              dispatch({ type: "RESET" });
+              onLabAction?.("reset", 3, undefined, "normal");
+            }}
             className="rounded border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent"
           >
             Reset Lab
@@ -374,9 +385,11 @@ export function KubernetesLab({
             max={6}
             step={1}
             value={state.desiredReplicas}
-            onChange={(e) =>
-              dispatch({ type: "SET_REPLICAS", count: parseInt(e.target.value, 10) })
-            }
+            onChange={(e) => {
+              const count = parseInt(e.target.value, 10);
+              dispatch({ type: "SET_REPLICAS", count });
+              onLabAction?.("scale", count, undefined, "scaled");
+            }}
             className="w-full cursor-pointer accent-primary"
             aria-label="Desired replica slider from 1 to 6"
           />
@@ -392,7 +405,10 @@ export function KubernetesLab({
           {state.activeScenario === "none" ? (
             <button
               type="button"
-              onClick={() => dispatch({ type: "TRIGGER_FAILURE", scenario: "readiness_probe_failure" })}
+              onClick={() => {
+                dispatch({ type: "TRIGGER_FAILURE", scenario: "readiness_probe_failure" });
+                onLabAction?.("simulate_failure", state.desiredReplicas, undefined, "degraded");
+              }}
               className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
             >
               ⚠ Simulate Readiness Probe Failure
@@ -400,7 +416,10 @@ export function KubernetesLab({
           ) : (
             <button
               type="button"
-              onClick={() => dispatch({ type: "APPLY_CORRECTIVE_ACTION" })}
+              onClick={() => {
+                dispatch({ type: "APPLY_CORRECTIVE_ACTION" });
+                onLabAction?.("recover", state.desiredReplicas, undefined, "recovered");
+              }}
               className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 animate-pulse"
             >
               🩹 Apply Fix: Patch Probe & Endpoint
@@ -409,7 +428,10 @@ export function KubernetesLab({
 
           <button
             type="button"
-            onClick={() => dispatch({ type: "TRIGGER_ROLLING_UPDATE" })}
+            onClick={() => {
+              dispatch({ type: "TRIGGER_ROLLING_UPDATE" });
+              onLabAction?.("scale", state.desiredReplicas, undefined, "normal");
+            }}
             className="rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
           >
             🔄 Trigger Rolling Update

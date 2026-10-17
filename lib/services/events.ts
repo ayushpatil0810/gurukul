@@ -6,6 +6,28 @@ import { planEventAppend, seqsToAcknowledge, type TimelineEvent } from "@/lib/en
 import { gradedRecordingAllowed, sanitizeClientPayload } from "@/lib/engine/event-payload";
 import { AppError } from "@/lib/errors";
 
+export const classroomEventTypes = [
+  "lesson_start",
+  "lesson_complete",
+  "scene_view",
+  "scene_nav",
+  "diagram_node_inspect",
+  "stepper_step",
+  "walkthrough_step",
+  "docker_lab_action",
+  "cicd_lab_run",
+  "k8s_lab_action",
+  "quiz_submit",
+  "quiz_retry",
+  "mentor_open",
+  "mentor_action",
+  "mentor_reply",
+  "recommendation_view",
+  "recommendation_click",
+] as const;
+
+export type ClassroomEventType = (typeof classroomEventTypes)[number];
+
 export const clientEventTypes = [
   "session_start",
   "session_end",
@@ -26,6 +48,7 @@ export const clientEventTypes = [
   "blur",
   "tab_hidden",
   "tab_visible",
+  ...classroomEventTypes,
 ] as const;
 
 export type ClientEventType = (typeof clientEventTypes)[number];

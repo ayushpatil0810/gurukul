@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PreviewScene, SceneRole } from "@/lib/engine/lesson-preview";
 import { ArchitectureDiagram } from "@/components/lessons/interactive/architecture-diagram";
 import { StepByStepViewer } from "@/components/lessons/interactive/step-by-step";
@@ -11,6 +11,7 @@ import { DockerLab } from "@/components/lessons/interactive/docker-lab";
 import { CicdLab } from "@/components/lessons/interactive/cicd-lab";
 import { InteractiveKnowledgeCheck } from "@/components/lessons/interactive/interactive-quiz";
 import { AiMentor } from "@/components/lessons/mentor/ai-mentor";
+import { ClassroomTracker } from "@/components/lessons/telemetry/classroom-tracker";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -40,6 +41,7 @@ export function LessonView({
   scenes,
   showAnswers,
   codeLanguage = null,
+  sessionId = null,
 }: {
   lessonId?: string;
   lessonTitle?: string;
@@ -47,6 +49,7 @@ export function LessonView({
   scenes: PreviewScene[];
   showAnswers: boolean;
   codeLanguage?: string | null;
+  sessionId?: string | null;
 }) {
   const [index, setIndex] = useState(0);
   const [visited, setVisited] = useState<number[]>([0]);
@@ -55,11 +58,64 @@ export function LessonView({
 
   const scene = scenes[index];
   const viewed = new Set(visited.filter((item) => item < scenes.length)).size;
+  const trackerRef = useRef<ClassroomTracker | null>(null);
+
+  useEffect(() => {
+    if (!lessonId) return;
+    const tracker = new ClassroomTracker(lessonId, sessionId);
+    trackerRef.current = tracker;
+
+    tracker.emit("lesson_start", { sceneCount: scenes.length });
+    if (scenes[0]) {
+      tracker.emit("scene_view", {
+        sceneIndex: 0,
+        role: scenes[0].role,
+        title: scenes[0].title,
+      }, scenes[0].id);
+    }
+
+    const handleBeforeUnload = () => {
+      tracker.flush();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      tracker.dispose();
+    };
+  }, [lessonId, sessionId, scenes]);
 
   function show(next: number) {
     const bounded = Math.max(0, Math.min(scenes.length - 1, next));
+    if (bounded === index) return;
+    const direction = bounded > index ? "next" : "prev";
+    const nextScene = scenes[bounded];
+
+    trackerRef.current?.emit("scene_nav", {
+      fromIndex: index,
+      toIndex: bounded,
+      direction,
+    }, scene?.id);
+
+    if (nextScene) {
+      trackerRef.current?.emit("scene_view", {
+        sceneIndex: bounded,
+        role: nextScene.role,
+        title: nextScene.title,
+      }, nextScene.id);
+    }
+
     setIndex(bounded);
-    setVisited((current) => (current.includes(bounded) ? current : [...current, bounded]));
+    setVisited((current) => {
+      const nextVisited = current.includes(bounded) ? current : [...current, bounded];
+      if (nextVisited.length === scenes.length) {
+        trackerRef.current?.emit("lesson_complete", {
+          scenesViewed: nextVisited.length,
+          totalScenes: scenes.length,
+        }, nextScene?.id);
+      }
+      return nextVisited;
+    });
     setInspectedEntity(null);
     setInspectedLogs(null);
   }
@@ -124,12 +180,37 @@ export function LessonView({
         <article className="mt-6 max-w-[75ch]">
           <h2 className="text-2xl font-semibold tracking-tight text-balance">{scene.title}</h2>
           <SceneBody
+            lessonId={lessonId}
             scene={scene}
             showAnswers={showAnswers}
             codeLanguage={codeLanguage}
             onSelectEntity={(entity, logs) => {
               setInspectedEntity(entity);
               if (logs) setInspectedLogs(logs);
+            }}
+            onInspectNode={(nodeId, nodeLabel, category) => {
+              trackerRef.current?.emit("diagram_node_inspect", { nodeId, nodeLabel, category }, scene.id);
+            }}
+            onStepperStep={(stepIndex, totalSteps, completed) => {
+              trackerRef.current?.emit("stepper_step", { stepIndex, totalSteps, completed }, scene.id);
+            }}
+            onWalkthroughStep={(stepIndex, totalSteps) => {
+              trackerRef.current?.emit("walkthrough_step", { stepIndex, totalSteps }, scene.id);
+            }}
+            onDockerLabAction={(action, status, passed) => {
+              trackerRef.current?.emit("docker_lab_action", { action, status, passed }, scene.id);
+            }}
+            onCicdLabRun={(stage, stageName, passed, gateOutcome) => {
+              trackerRef.current?.emit("cicd_lab_run", { stage, stageName, passed, gateOutcome }, scene.id);
+            }}
+            onK8sLabAction={(action, replicas, podName, outcome) => {
+              trackerRef.current?.emit("k8s_lab_action", { action, replicas, podName, outcome }, scene.id);
+            }}
+            onQuizSubmit={(questionId, selectedOption, isCorrect) => {
+              trackerRef.current?.emit("quiz_submit", { questionId, selectedOption, isCorrect }, scene.id);
+            }}
+            onQuizRetry={(questionId) => {
+              trackerRef.current?.emit("quiz_retry", { questionId }, scene.id);
             }}
           />
         </article>
@@ -162,21 +243,48 @@ export function LessonView({
         activeSceneRole={roleLabel[scene.role] ?? scene.role}
         selectedEntity={inspectedEntity}
         visibleLogs={inspectedLogs}
+        onMentorOpen={(sceneTitle) => {
+          trackerRef.current?.emit("mentor_open", { sceneTitle }, scene.id);
+        }}
+        onMentorAction={(action, promptCategory) => {
+          trackerRef.current?.emit("mentor_action", { action, promptCategory }, scene.id);
+        }}
+        onMentorReply={(action, status) => {
+          trackerRef.current?.emit("mentor_reply", { action, status }, scene.id);
+        }}
       />
     </div>
   );
 }
 
 function SceneBody({
+  lessonId,
   scene,
   showAnswers,
   codeLanguage,
   onSelectEntity,
+  onInspectNode,
+  onStepperStep,
+  onWalkthroughStep,
+  onDockerLabAction,
+  onCicdLabRun,
+  onK8sLabAction,
+  onQuizSubmit,
+  onQuizRetry,
 }: {
+  lessonId?: string;
   scene: PreviewScene;
   showAnswers: boolean;
   codeLanguage: string | null;
   onSelectEntity?: (entity: string | null, logs?: string | null) => void;
+  onInspectNode?: (nodeId: string, nodeLabel: string, category?: string) => void;
+  onStepperStep?: (stepIndex: number, totalSteps: number, completed: boolean) => void;
+  onWalkthroughStep?: (stepIndex: number, totalSteps: number) => void;
+  onDockerLabAction?: (action: "build" | "run" | "health_check" | "reset", status?: string, passed?: boolean) => void;
+  onCicdLabRun?: (stage: number, stageName: string, passed: boolean, gateOutcome: "proceed" | "blocked") => void;
+  onK8sLabAction?: (action: "scale" | "simulate_failure" | "recover" | "inspect_pod" | "reset", replicas?: number, podName?: string, outcome?: "degraded" | "recovered" | "scaled" | "normal") => void;
+  onQuizSubmit?: (questionId: string, selectedOption: string, isCorrect: boolean) => void;
+  onQuizRetry?: (questionId: string) => void;
 }) {
   // 1. Interactive Diagram
   if (scene.diagram) {
@@ -194,6 +302,7 @@ function SceneBody({
           onSelectNode={(node) =>
             onSelectEntity?.(node ? `${node.label} (${node.category ?? "Node"})` : null)
           }
+          onInspectNode={onInspectNode}
         />
       </div>
     );
@@ -210,7 +319,7 @@ function SceneBody({
             ))}
           </div>
         ) : null}
-        <StepByStepViewer data={scene.stepper} />
+        <StepByStepViewer data={scene.stepper} onStepChange={onStepperStep} />
       </div>
     );
   }
@@ -226,7 +335,7 @@ function SceneBody({
             ))}
           </div>
         ) : null}
-        <CodeWalkthrough data={scene.walkthrough} />
+        <CodeWalkthrough data={scene.walkthrough} onStepChange={onWalkthroughStep} />
       </div>
     );
   }
@@ -247,11 +356,12 @@ function SceneBody({
             onInspectEntity={(info) => {
               onSelectEntity?.(info.name, info.logs);
             }}
+            onLabAction={onK8sLabAction}
           />
         ) : scene.lab.kind === "docker" ? (
-          <DockerLab />
+          <DockerLab onLabAction={onDockerLabAction} />
         ) : scene.lab.kind === "cicd" ? (
-          <CicdLab />
+          <CicdLab onPipelineRun={onCicdLabRun} />
         ) : (
           <div className="rounded-lg border border-border p-4 text-xs text-muted-foreground">
             Simulation kind &apos;{JSON.stringify(scene.lab)}&apos; is preserved.
@@ -265,7 +375,13 @@ function SceneBody({
   if (scene.role === "check" || scene.role === "knowledge_check" || scene.type === "quiz") {
     return (
       <div className="mt-4">
-        <InteractiveKnowledgeCheck questions={scene.questions} showAnswers={showAnswers} />
+        <InteractiveKnowledgeCheck
+          questions={scene.questions}
+          lessonId={lessonId}
+          showAnswers={showAnswers}
+          onSubmitQuestion={onQuizSubmit}
+          onRetryQuestion={onQuizRetry}
+        />
       </div>
     );
   }

@@ -6,10 +6,12 @@ import type { ArchitectureDiagramData, DiagramNode } from "@/lib/engine/lesson-p
 export function ArchitectureDiagram({
   data,
   onSelectNode,
+  onInspectNode,
   selectedNodeId: externalSelectedId,
 }: {
   data: ArchitectureDiagramData;
   onSelectNode?: (node: DiagramNode | null) => void;
+  onInspectNode?: (nodeId: string, nodeLabel: string, category?: string) => void;
   selectedNodeId?: string | null;
 }) {
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(
@@ -22,6 +24,9 @@ export function ArchitectureDiagram({
     const nextId = activeId === node.id ? null : node.id;
     setInternalSelectedId(nextId);
     onSelectNode?.(nextId ? node : null);
+    if (nextId) {
+      onInspectNode?.(node.id, node.label, node.category);
+    }
   }
 
   // Calculate coordinates for nodes in a clean flow

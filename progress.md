@@ -306,6 +306,46 @@ Checked on the final tree:
 - `bun run build` passed on Next.js 16.4.2 (all 29 routes generated).
 - Zero database migrations required (used existing JSONB columns). No Git commit was made.
 
+## Phase 5.1 — Browser QA, Integration Verification & Bug Fixes
+
+Implemented and documented in `docs/PHASE5_1_BROWSER_QA.md`.
+
+QA, integration verification & bug fixes:
+- Verified complete student journey across all 10 scenes of flagship DevOps lesson (`4a3a34a7-7596-4d6e-b22e-a909d7f6d7da`).
+- Fixed Quiz Evaluation Defect: Answer keys were stripped (`answer: null`) for student confidentiality, but client lacked an evaluation mechanism. Implemented `checkLessonQuestion` in `lib/services/lessons.ts` and `POST /api/lessons/[id]/check` endpoint with Zod validation. Updated `InteractiveKnowledgeCheck` to securely verify answers server-side, display post-submission feedback and explanation cards, and support retries without leaking answer keys upfront.
+- Fixed 390px Mobile Viewport Overflow: Resolved horizontal layout overflow in `AiMentor` by replacing fixed `w-96` with responsive `w-[calc(100vw-1.5rem)] sm:w-96 max-w-sm` and `max-h-[calc(100vh-5rem)]`.
+- Fixed Vitest Test Timeout: Configured `testTimeout: 20000` in `vitest.config.mts` to prevent TypeScript AST syntax tests from timing out under concurrent Docker test load.
+- Added comprehensive regression test suite: `tests/integration/classroom-journey.test.ts` (15 tests) verifying authorized student access, scene roles, visual components, pre-submission answer confidentiality, author preview keys, quiz verification, unauthorized/unauthenticated access rejection, K8s cluster state machine, and data integrity.
+- Data Integrity Guaranteed: Tested before and after student interaction with `scripts/probe-mastery.mjs`. Confirmed strictly identical state: 0 updates, 0 attempts, 0 signals, 0 reviews, 0 mastery changes.
+- Automated verification on the final tree:
+  - `bun run test`: **41 test files passed, 189 tests passed (100% pass rate)**.
+  - `bun run lint`: **0 errors, 0 warnings**.
+  - `bun run typecheck`: **0 errors (`tsc --noEmit`)**.
+  - `bun run build`: **30 routes compiled successfully in 6.2s**.
+- Working tree preserved uncommitted (no git commits made).
+
+## Phase 5.2 — Learning Telemetry & Adaptive Integration
+
+Implemented and documented in `docs/PHASE5_2_LEARNING_TELEMETRY.md`.
+
+Classroom telemetry, trust boundary & adaptive decoupling:
+- Established a unified, privacy-conscious telemetry pipeline capturing 15 distinct classroom interaction event types: lesson lifecycle (`lesson_start`, `lesson_complete`), scene navigation (`scene_view`, `scene_nav`), architecture diagram node inspections (`diagram_node_inspect`), step advances (`stepper_step`, `walkthrough_step`), interactive DevOps labs (`docker_lab_action`, `cicd_lab_run`, `k8s_lab_action`), formative knowledge checks (`quiz_submit`, `quiz_retry`), and AI mentor interactions (`mentor_open`, `mentor_action`, `mentor_reply`).
+- Built server validation and privacy scrubber (`lib/validations/classroom-telemetry.ts`): enforced 16 KB payload limits and stripped sensitive fields (passwords, tokens, reference solutions, hidden tests, full transcripts).
+- Trust Boundary & Cross-Student Isolation (`lib/services/classroom-telemetry.ts`): untrusted client events validated against authenticated actor and session ownership. Cross-student session writes are strictly rejected and quarantined under the submitting student's audit record with `invalid_reason: "cross_student_ownership_mismatch"`. Target student sessions remain completely untouched. Duplicate completions deduplicated.
+- Strict Adaptive Decoupling: formative interactions, simulation trials, failure recoveries, and mentor queries are strictly segregated from summative adaptive systems. BKT mastery scores (`pKnow`), updates (`mastery_updates`), attempts (`attempts`), and integrity signals (`signals`) remain completely unchanged by telemetry. Cheating or misconduct is never inferred from simulation behavior or mentor help.
+- Role-Based Learning Analytics (`lib/services/classroom-analytics.ts`, `app/api/analytics/classroom/route.ts`): provides non-punitive analytics (lessons started/completed, scene progression, lab attempts & recoveries, knowledge check accuracy, mentor usage, session context integrity). Scoped by RBAC: students query own data, trainers query assigned batches, admins query institute. Zero leaderboards.
+- Dashboard Integration (`components/dashboard/views.tsx`): added `ClassroomAnalyticsCard` to Student Learning, Trainer Learning, and Student Detail views.
+- Client Tracker (`components/lessons/telemetry/classroom-tracker.ts`): buffered dispatch every 5s with auto-sequencing and `beforeunload`/`visibilitychange` keepalive flush.
+- Automated verification on the final tree:
+  - `bun run test`: **42 test files passed, 209 tests passed (100% pass rate)**.
+  - `tests/integration/classroom-telemetry.test.ts`: **20 comprehensive integration tests passing**.
+  - `bun run lint`: **0 errors, 0 warnings**.
+  - `bun run typecheck`: **0 errors (`tsc --noEmit`)**.
+  - `bun run build`: **31 routes compiled successfully on Next.js 16.4.2**.
+  - `scripts/probe-mastery.mjs`: Pre/post-test DB states strictly identical (0 unwanted mutations).
+- Security audit: confirmed authentication, session ownership, cross-student protection, institute scoping, 16KB payload limits, completion deduplication, and sensitive metadata sanitization; identified that HTTP sliding-window rate limiting on `/api/lessons/[id]/telemetry` is not yet implemented (relies on payload/batch bounds and 5s client debouncing). Browser automation was not re-run in Phase 5.2 (UI components verified via browser QA in Phase 5.1).
+- Working tree preserved uncommitted (no git commits made, no unnecessary migrations).
+
 ## Not started
 
 Per-batch threshold tuning and student-visible signals stay P1. Periodic snapshots and trainer notes from the PRD are not built. A keepalive batch that never reached the server still cannot be replayed.
@@ -322,3 +362,4 @@ Also open: CI hardening beyond the current red-team run, the demo seed in PRD 13
 - Explanation results are stored and are not applied to mastery. AE-5 does not give a numeric weight.
 
 Choices that are easy to miss later are in `docs/DECISIONS.md`.
+

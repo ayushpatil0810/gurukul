@@ -3,11 +3,23 @@
 import { useEffect, useState } from "react";
 import type { StepByStepData } from "@/lib/engine/lesson-preview";
 
-export function StepByStepViewer({ data }: { data: StepByStepData }) {
+export function StepByStepViewer({
+  data,
+  onStepChange,
+}: {
+  data: StepByStepData;
+  onStepChange?: (stepIndex: number, totalSteps: number, completed: boolean) => void;
+}) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const steps = data.steps;
   const activeStep = steps[currentStep];
+
+  function changeStep(nextIndex: number) {
+    const bounded = Math.max(0, Math.min(steps.length - 1, nextIndex));
+    setCurrentStep(bounded);
+    onStepChange?.(bounded, steps.length, bounded === steps.length - 1);
+  }
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -17,11 +29,13 @@ export function StepByStepViewer({ data }: { data: StepByStepData }) {
           setIsPlaying(false);
           return prev;
         }
-        return prev + 1;
+        const next = prev + 1;
+        onStepChange?.(next, steps.length, next === steps.length - 1);
+        return next;
       });
     }, 4000);
     return () => clearInterval(interval);
-  }, [isPlaying, steps.length]);
+  }, [isPlaying, steps.length, onStepChange]);
 
   if (!activeStep) return null;
 
@@ -49,7 +63,7 @@ export function StepByStepViewer({ data }: { data: StepByStepData }) {
             type="button"
             onClick={() => {
               setIsPlaying(false);
-              setCurrentStep(0);
+              changeStep(0);
             }}
             aria-label="Reset to step 1"
             className="rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent"
@@ -71,7 +85,7 @@ export function StepByStepViewer({ data }: { data: StepByStepData }) {
               aria-label={`Step ${idx + 1}: ${step.title}`}
               onClick={() => {
                 setIsPlaying(false);
-                setCurrentStep(idx);
+                changeStep(idx);
               }}
               className={`h-2 flex-1 rounded-full transition-all duration-300 ${
                 idx === currentStep
@@ -130,7 +144,7 @@ export function StepByStepViewer({ data }: { data: StepByStepData }) {
           disabled={currentStep === 0}
           onClick={() => {
             setIsPlaying(false);
-            setCurrentStep((prev) => Math.max(0, prev - 1));
+            changeStep(currentStep - 1);
           }}
           className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-40"
         >
@@ -144,7 +158,7 @@ export function StepByStepViewer({ data }: { data: StepByStepData }) {
           disabled={currentStep === steps.length - 1}
           onClick={() => {
             setIsPlaying(false);
-            setCurrentStep((prev) => Math.min(steps.length - 1, prev + 1));
+            changeStep(currentStep + 1);
           }}
           className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
         >

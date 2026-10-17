@@ -3,30 +3,127 @@
 import { useState } from "react";
 import type { PreviewQuestion } from "@/lib/engine/lesson-preview";
 
+export type QuestionEvaluation = {
+  isCorrect: boolean;
+  correctAnswer: string;
+  explanation: string;
+};
+
 export function InteractiveKnowledgeCheck({
   questions,
+  lessonId,
   showAnswers = false,
   onComplete,
+  onSubmitQuestion,
+  onRetryQuestion,
 }: {
   questions: PreviewQuestion[];
+  lessonId?: string;
   showAnswers?: boolean;
   onComplete?: () => void;
+  onSubmitQuestion?: (questionId: string, selectedOption: string, isCorrect: boolean) => void;
+  onRetryQuestion?: (questionId: string) => void;
 }) {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
+  const [evaluations, setEvaluations] = useState<Record<string, QuestionEvaluation>>({});
+  const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
+  const [errorMessages, setErrorMessages] = useState<Record<string, string>>({});
 
   function handleSelect(questionId: string, option: string) {
-    if (submitted[questionId]) return; // lock selection once submitted
+    if (submitted[questionId] || submitting[questionId]) return;
     setSelectedAnswers((prev) => ({ ...prev, [questionId]: option }));
+    setErrorMessages((prev) => {
+      const copy = { ...prev };
+      delete copy[questionId];
+      return copy;
+    });
   }
 
-  function handleSubmit(questionId: string) {
-    if (!selectedAnswers[questionId]) return;
-    setSubmitted((prev) => ({ ...prev, [questionId]: true }));
-    // If all submitted, trigger onComplete
-    const nextSubmitted = { ...submitted, [questionId]: true };
-    if (questions.every((q) => nextSubmitted[q.id])) {
-      onComplete?.();
+  async function handleSubmit(questionId: string) {
+    const selected = selectedAnswers[questionId];
+    if (!selected) return;
+
+    const question = questions.find((q) => q.id === questionId);
+    if (!question) return;
+
+    // Mode A: Direct evaluation if answer key is already provided (e.g. Studio preview)
+    if (question.answer != null) {
+      const isCorrect = selected.trim().toLowerCase() === question.answer.trim().toLowerCase();
+      setEvaluations((prev) => ({
+        ...prev,
+        [questionId]: {
+          isCorrect,
+          correctAnswer: question.answer ?? "",
+          explanation: isCorrect
+            ? "Great reasoning! You selected the correct answer."
+            : `The correct answer is: “${question.answer}”.`,
+        },
+      }));
+      setSubmitted((prev) => {
+        const next = { ...prev, [questionId]: true };
+        if (questions.every((q) => next[q.id])) onComplete?.();
+        return next;
+      });
+      onSubmitQuestion?.(questionId, selected, isCorrect);
+      return;
+    }
+
+    // Mode B: Secure server-side evaluation (student view without pre-exposed answer keys)
+    if (lessonId) {
+      setSubmitting((prev) => ({ ...prev, [questionId]: true }));
+      setErrorMessages((prev) => {
+        const copy = { ...prev };
+        delete copy[questionId];
+        return copy;
+      });
+
+      try {
+        const response = await fetch(`/api/lessons/${lessonId}/check`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            questionId,
+            selectedOption: selected,
+          }),
+        });
+
+        const result = (await response.json()) as {
+          success?: boolean;
+          data?: {
+            isCorrect: boolean;
+            correctAnswer: string;
+            explanation: string;
+          };
+          error?: { message?: string };
+        };
+
+        if (!response.ok || !result.success || !result.data) {
+          setErrorMessages((prev) => ({
+            ...prev,
+            [questionId]: result.error?.message ?? "Failed to check answer. Please try again.",
+          }));
+          return;
+        }
+
+        setEvaluations((prev) => ({
+          ...prev,
+          [questionId]: result.data!,
+        }));
+        setSubmitted((prev) => {
+          const next = { ...prev, [questionId]: true };
+          if (questions.every((q) => next[q.id])) onComplete?.();
+          return next;
+        });
+        onSubmitQuestion?.(questionId, selected, result.data.isCorrect);
+      } catch {
+        setErrorMessages((prev) => ({
+          ...prev,
+          [questionId]: "Network error checking answer. Please check your connection.",
+        }));
+      } finally {
+        setSubmitting((prev) => ({ ...prev, [questionId]: false }));
+      }
     }
   }
 
@@ -36,11 +133,22 @@ export function InteractiveKnowledgeCheck({
       delete copy[questionId];
       return copy;
     });
+    setEvaluations((prev) => {
+      const copy = { ...prev };
+      delete copy[questionId];
+      return copy;
+    });
     setSelectedAnswers((prev) => {
       const copy = { ...prev };
       delete copy[questionId];
       return copy;
     });
+    setErrorMessages((prev) => {
+      const copy = { ...prev };
+      delete copy[questionId];
+      return copy;
+    });
+    onRetryQuestion?.(questionId);
   }
 
   return (
@@ -55,10 +163,12 @@ export function InteractiveKnowledgeCheck({
       <ol className="space-y-6">
         {questions.map((question, qIdx) => {
           const isSubmitted = !!submitted[question.id];
+          const isSubmittingThis = !!submitting[question.id];
           const selected = selectedAnswers[question.id];
-          const correctAnswer = question.answer;
-          // Determine if student answer matches
-          const isCorrect = isSubmitted && correctAnswer && selected ? selected.trim().toLowerCase() === correctAnswer.trim().toLowerCase() : false;
+          const evaluation = evaluations[question.id];
+          const isCorrect = evaluation?.isCorrect ?? false;
+          const correctAnswer = evaluation?.correctAnswer ?? question.answer;
+          const errorMessage = errorMessages[question.id];
 
           return (
             <li
@@ -81,13 +191,16 @@ export function InteractiveKnowledgeCheck({
                     const optionLetter = String.fromCharCode(65 + optIdx);
                     const isOptionSelected = selected === option;
                     const isOptionCorrectAnswer =
-                      isSubmitted && correctAnswer && option.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+                      isSubmitted &&
+                      correctAnswer &&
+                      option.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
 
                     let optionStyle = "border-border bg-card hover:bg-accent/40 text-foreground";
 
                     if (isSubmitted) {
                       if (isOptionCorrectAnswer) {
-                        optionStyle = "border-emerald-500 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200 font-medium";
+                        optionStyle =
+                          "border-emerald-500 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200 font-medium";
                       } else if (isOptionSelected && !isCorrect) {
                         optionStyle = "border-red-500 bg-red-500/10 text-red-900 dark:text-red-200";
                       } else {
@@ -103,7 +216,7 @@ export function InteractiveKnowledgeCheck({
                         type="button"
                         role="radio"
                         aria-checked={isOptionSelected}
-                        disabled={isSubmitted}
+                        disabled={isSubmitted || isSubmittingThis}
                         onClick={() => handleSelect(question.id, option)}
                         className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left text-xs transition-colors ${optionStyle}`}
                       >
@@ -121,16 +234,23 @@ export function InteractiveKnowledgeCheck({
                 </p>
               )}
 
+              {/* Error Message */}
+              {errorMessage ? (
+                <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                  {errorMessage}
+                </div>
+              ) : null}
+
               {/* Submit & Retry Buttons */}
               <div className="flex items-center gap-3 pt-1">
                 {!isSubmitted ? (
                   <button
                     type="button"
-                    disabled={!selected}
+                    disabled={!selected || isSubmittingThis}
                     onClick={() => handleSubmit(question.id)}
                     className="rounded-md bg-primary px-3.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
-                    Submit Answer
+                    {isSubmittingThis ? "Checking…" : "Submit Answer"}
                   </button>
                 ) : (
                   <div className="flex items-center gap-3">
@@ -155,7 +275,7 @@ export function InteractiveKnowledgeCheck({
               </div>
 
               {/* Post-submission Feedback & Explanation */}
-              {isSubmitted && correctAnswer ? (
+              {isSubmitted && evaluation ? (
                 <div
                   className={`rounded-lg border p-3 text-xs space-y-1 animate-in fade-in duration-200 ${
                     isCorrect
@@ -164,10 +284,10 @@ export function InteractiveKnowledgeCheck({
                   }`}
                 >
                   <p className="font-semibold">
-                    {isCorrect ? "Great reasoning!" : `Key takeaway: The correct answer is “${correctAnswer}”.`}
+                    {isCorrect ? "Great reasoning!" : `Key takeaway: The correct answer is “${evaluation.correctAnswer}”.`}
                   </p>
                   <p className="text-muted-foreground leading-relaxed">
-                    Readiness probes determine traffic eligibility; Kubernetes removes failing pods from LoadBalancer endpoints until health status returns to 200 OK.
+                    {evaluation.explanation}
                   </p>
                 </div>
               ) : null}

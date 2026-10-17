@@ -192,6 +192,29 @@ export async function submitSession(
   deps: AssessmentDeps = defaultDeps,
 ) {
   const session = await ownedSession(actor, sessionId);
+
+  // Idempotency check: if session was already submitted, return existing attempt without re-applying mastery
+  const [existingAttempt] = await db
+    .select({
+      id: attempts.id,
+      resultJson: attempts.resultJson,
+      passRate: attempts.passRate,
+    })
+    .from(attempts)
+    .where(and(eq(attempts.sessionId, sessionId), eq(attempts.kind, "submit")))
+    .limit(1);
+
+  if (existingAttempt) {
+    const existingSummary = existingAttempt.resultJson as ReturnType<typeof toHiddenResults>;
+    const alreadyCorrect = attemptIsCorrect(existingAttempt.passRate ?? 0, PASS_THRESHOLD);
+    return {
+      ...existingSummary,
+      correct: alreadyCorrect,
+      mastery: [],
+      attemptId: existingAttempt.id,
+    };
+  }
+
   const hidden = await loadTests(session.instituteId, session.questionId, "hidden");
   assertLanguage(session.languages, input.language);
   const graded = await executeTests(actor.id, input, hidden, deps);
@@ -211,6 +234,12 @@ export async function submitSession(
       sandboxLog: summary.tests.map((test) => `${test.category}: ${test.message}`).join("\n"),
     })
     .returning({ id: attempts.id });
+
+  // Mark session as ended
+  await db
+    .update(learningSessions)
+    .set({ endedAt: new Date() })
+    .where(eq(learningSessions.id, sessionId));
 
   let mastery: { conceptId: string; before: number; after: number }[] = [];
   if (session.mode === "graded") {

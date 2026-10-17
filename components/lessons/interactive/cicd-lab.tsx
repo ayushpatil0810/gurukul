@@ -83,7 +83,11 @@ const initialStages: PipelineStage[] = [
   },
 ];
 
-export function CicdLab() {
+export function CicdLab({
+  onPipelineRun,
+}: {
+  onPipelineRun?: (stage: number, stageName: string, passed: boolean, gateOutcome: "proceed" | "blocked") => void;
+} = {}) {
   const [stages, setStages] = useState<PipelineStage[]>(initialStages);
   const [selectedStageId, setSelectedStageId] = useState<string>("stage-3");
   const [scenario, setScenario] = useState<"idle" | "running_success" | "running_failure" | "complete_success" | "complete_failure">("idle");
@@ -101,6 +105,7 @@ export function CicdLab() {
         }))
       );
       setScenario("complete_success");
+      onPipelineRun?.(6, "Production Deploy Gate", true, "proceed");
     } else {
       setStages((prev) =>
         prev.map((stage) => {
@@ -134,6 +139,7 @@ export function CicdLab() {
       );
       setSelectedStageId("stage-3");
       setScenario("complete_failure");
+      onPipelineRun?.(3, "Automated Tests Gate", false, "blocked");
     }
   }
 

@@ -3,10 +3,21 @@
 import { useState } from "react";
 import type { CodeWalkthroughData } from "@/lib/engine/lesson-preview";
 
-export function CodeWalkthrough({ data }: { data: CodeWalkthroughData }) {
+export function CodeWalkthrough({
+  data,
+  onStepChange,
+}: {
+  data: CodeWalkthroughData;
+  onStepChange?: (stepIndex: number, totalSteps: number) => void;
+}) {
   const [activeAnnotationIndex, setActiveAnnotationIndex] = useState(0);
   const annotations = data.annotations;
   const activeAnnotation = annotations[activeAnnotationIndex];
+
+  function handleStep(index: number) {
+    setActiveAnnotationIndex(index);
+    onStepChange?.(index, annotations.length);
+  }
 
   const codeLines = data.code.split("\n");
 
@@ -26,7 +37,7 @@ export function CodeWalkthrough({ data }: { data: CodeWalkthroughData }) {
             <button
               type="button"
               disabled={activeAnnotationIndex === 0}
-              onClick={() => setActiveAnnotationIndex((i) => Math.max(0, i - 1))}
+              onClick={() => handleStep(Math.max(0, activeAnnotationIndex - 1))}
               className="rounded border border-border px-2 py-0.5 text-xs hover:bg-accent disabled:opacity-40"
               aria-label="Previous code annotation"
             >
@@ -38,7 +49,7 @@ export function CodeWalkthrough({ data }: { data: CodeWalkthroughData }) {
             <button
               type="button"
               disabled={activeAnnotationIndex === annotations.length - 1}
-              onClick={() => setActiveAnnotationIndex((i) => Math.min(annotations.length - 1, i + 1))}
+              onClick={() => handleStep(Math.min(annotations.length - 1, activeAnnotationIndex + 1))}
               className="rounded border border-border px-2 py-0.5 text-xs hover:bg-accent disabled:opacity-40"
               aria-label="Next code annotation"
             >

@@ -46,7 +46,11 @@ npm-debug.log
 dist`,
 };
 
-export function DockerLab() {
+export function DockerLab({
+  onLabAction,
+}: {
+  onLabAction?: (action: "build" | "run" | "health_check" | "reset", status?: string, passed?: boolean) => void;
+} = {}) {
   const [selectedFile, setSelectedFile] = useState<SelectedFile>("Dockerfile");
   const [buildStatus, setBuildStatus] = useState<"unbuilt" | "building" | "built">("unbuilt");
   const [containerRunning, setContainerRunning] = useState(false);
@@ -69,6 +73,7 @@ export function DockerLab() {
     ]);
     setTimeout(() => {
       setBuildStatus("built");
+      onLabAction?.("build", "built", true);
     }, 600);
   }
 
@@ -79,6 +84,7 @@ export function DockerLab() {
       "$ docker run -d -p 8080:8080 --name web-api learnloop/api:1.0",
       "Container 9c4f1a8e started on 0.0.0.0:8080->8080/tcp",
     ]);
+    onLabAction?.("run", "running", true);
   }
 
   function handleHealthCheck() {
@@ -88,6 +94,7 @@ export function DockerLab() {
       "$ curl -i http://localhost:8080/healthz",
       "HTTP/1.1 200 OK -> Healthy probe response verified.",
     ]);
+    onLabAction?.("health_check", "passed", true);
   }
 
   function handleReset() {
@@ -95,6 +102,7 @@ export function DockerLab() {
     setContainerRunning(false);
     setHealthResponse(null);
     setLogs(["Lab reset. Ready for container image build."]);
+    onLabAction?.("reset", "unbuilt");
   }
 
   return (
