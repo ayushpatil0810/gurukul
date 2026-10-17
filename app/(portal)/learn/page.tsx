@@ -10,7 +10,13 @@ export const metadata: Metadata = {
   description: "Comprehensive course concept syllabus, interactive lessons, and mastery quizzes.",
 };
 
-async function LearnScreen() {
+async function LearnScreen({
+  moduleId,
+  conceptId,
+}: {
+  moduleId?: string;
+  conceptId?: string;
+}) {
   await requireAuth();
   const actor = await getActor();
   if (!actor) return null;
@@ -22,11 +28,18 @@ async function LearnScreen() {
     );
   }
 
-  const learnData = await getCourseLearnData(actor);
-  return <LearnModuleView data={learnData} />;
+  const learnData = await getCourseLearnData(actor, moduleId);
+  return <LearnModuleView data={learnData} selectedConceptId={conceptId} />;
 }
 
-export default function LearnPage() {
+export default async function LearnPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ moduleId?: string; conceptId?: string; course?: string }>;
+}) {
+  const query = await searchParams;
+  const preferredModuleId = query?.moduleId ?? query?.course;
+
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
       <Suspense
@@ -37,7 +50,7 @@ export default function LearnPage() {
           </div>
         }
       >
-        <LearnScreen />
+        <LearnScreen moduleId={preferredModuleId} conceptId={query?.conceptId} />
       </Suspense>
     </div>
   );

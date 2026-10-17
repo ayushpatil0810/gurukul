@@ -13,29 +13,46 @@ import {
   Code2,
   Sparkles,
   X,
+  AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ConceptQuiz } from "@/lib/services/learn-module";
+import { cn } from "cn";
 
 export function ConceptQuizModal({
   quiz,
   lessonId,
   onClose,
+  onQuizCompleted,
+  onOpenLearnWin,
 }: {
   quiz: ConceptQuiz;
   lessonId?: string | null;
   onClose: () => void;
+  onQuizCompleted?: (result: {
+    conceptId: string;
+    passed: boolean;
+    scorePercent: number;
+    correctCount: number;
+    total: number;
+  }) => void;
+  onOpenLearnWin?: () => void;
 }) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [showExplanation, setShowExplanation] = useState<Record<number, boolean>>({});
   const [isFinished, setIsFinished] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiResponse, setApiResponse] = useState<{ passed: boolean; message?: string } | null>(null);
 
   const currentQ = quiz.questions[currentIdx];
   const total = quiz.questions.length;
   const isSelected = selectedAnswers[currentIdx] !== undefined;
   const selectedOption = selectedAnswers[currentIdx];
   const isCorrect = isSelected && selectedOption === currentQ.answerIndex;
+
+  const MINIMUM_PASSING_PERCENT = quiz.passingScorePercent || 70;
 
   const handleSelectOption = (optIdx: number) => {
     if (showExplanation[currentIdx]) return; // lock once answered
@@ -47,7 +64,7 @@ export function ConceptQuizModal({
     if (currentIdx < total - 1) {
       setCurrentIdx((prev) => prev + 1);
     } else {
-      setIsFinished(true);
+      finishQuiz();
     }
   };
 
@@ -62,6 +79,48 @@ export function ConceptQuizModal({
     setSelectedAnswers({});
     setShowExplanation({});
     setIsFinished(false);
+    setApiResponse(null);
+  };
+
+  const finishQuiz = async () => {
+    let correct = 0;
+    for (let i = 0; i < total; i++) {
+      if (selectedAnswers[i] === quiz.questions[i].answerIndex) {
+        correct++;
+      }
+    }
+    const score = Math.round((correct / total) * 100);
+    const passed = score >= MINIMUM_PASSING_PERCENT;
+
+    setIsFinished(true);
+    setIsSubmitting(true);
+
+    try {
+      const res = await fetch("/api/learning/concept-quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conceptId: quiz.conceptId,
+          scorePercent: score,
+          correctCount: correct,
+          totalQuestions: total,
+        }),
+      });
+      const data = await res.json();
+      setApiResponse(data);
+    } catch {
+      // Offline fallback
+      setApiResponse({ passed, message: passed ? "Mastery saved locally" : "Retake required" });
+    } finally {
+      setIsSubmitting(false);
+      onQuizCompleted?.({
+        conceptId: quiz.conceptId,
+        passed,
+        scorePercent: score,
+        correctCount: correct,
+        total,
+      });
+    }
   };
 
   // Calculate diagnostic results
@@ -72,41 +131,21 @@ export function ConceptQuizModal({
     }
   }
   const scorePercent = Math.round((correctCount / total) * 100);
-
-  let standingTitle = "Novice Understanding";
-  let standingColor = "text-amber-500 border-amber-500/30 bg-amber-500/10";
-  let standingAdvice =
-    "You are in the foundational phase of this concept. We strongly recommend reading the interactive lesson and working through the diagrams before continuing.";
-
-  if (scorePercent >= 85) {
-    standingTitle = "Mastery Standing: Solid Mastered";
-    standingColor = "text-emerald-500 border-emerald-500/30 bg-emerald-500/10";
-    standingAdvice =
-      "Outstanding conceptual grasp! You understand the key invariants and edge cases. You are fully prepared for the Practice Lab or upcoming Online Assessments.";
-  } else if (scorePercent >= 65) {
-    standingTitle = "Mastery Standing: Proficient";
-    standingColor = "text-primary border-primary/30 bg-primary/10";
-    standingAdvice =
-      "Good understanding of primary patterns. Reviewing the detailed explanations above will help reinforce subtle edge cases.";
-  } else if (scorePercent >= 40) {
-    standingTitle = "Mastery Standing: Developing";
-    standingColor = "text-blue-500 border-blue-500/30 bg-blue-500/10";
-    standingAdvice =
-      "Developing baseline understanding. Re-reading the lesson scenes and testing sample snippets in Practice will accelerate your mastery.";
-  }
+  const isPassed = scorePercent >= MINIMUM_PASSING_PERCENT;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl backdrop-blur-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-background/85 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl backdrop-blur-xl flex flex-col max-h-[90vh]">
+        
         {/* Top Header */}
-        <div className="flex items-center justify-between border-b border-border/60 bg-muted/30 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-border/60 bg-muted/30 px-6 py-4 shrink-0">
           <div className="flex items-center gap-2.5">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
+            <span className="flex size-8 items-center justify-center rounded-xl bg-primary/15 text-primary">
               <Sparkles className="size-4" />
             </span>
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Concept Understanding Quiz
+                Diagnostic Concept Evaluation · Minimum Pass: {MINIMUM_PASSING_PERCENT}%
               </p>
               <h3 className="text-base font-bold text-foreground leading-tight">
                 {quiz.conceptName}: {quiz.title}
@@ -125,7 +164,7 @@ export function ConceptQuizModal({
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 max-h-[75vh] overflow-y-auto no-scrollbar">
+        <div className="p-6 overflow-y-auto no-scrollbar flex-1">
           {!isFinished ? (
             <div className="space-y-6">
               {/* Progress Bar & Counter */}
@@ -188,16 +227,20 @@ export function ConceptQuizModal({
                       type="button"
                       disabled={isAnswered}
                       onClick={() => handleSelectOption(optIdx)}
-                      className={`flex w-full items-start gap-3 rounded-xl border p-3.5 text-left text-sm transition-all shadow-xs ${optStyles}`}
+                      className={cn(
+                        "flex w-full items-start gap-3 rounded-xl border p-3.5 text-left text-sm transition-all shadow-xs",
+                        optStyles,
+                      )}
                     >
                       <span
-                        className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                        className={cn(
+                          "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
                           isAnswered && isThisCorrect
                             ? "bg-emerald-500 text-white"
                             : isAnswered && isThisSelected
                               ? "bg-destructive text-white"
-                              : "bg-muted text-muted-foreground"
-                        }`}
+                              : "bg-muted text-muted-foreground",
+                        )}
                       >
                         {String.fromCharCode(65 + optIdx)}
                       </span>
@@ -215,11 +258,12 @@ export function ConceptQuizModal({
               {/* Formative Explanation Banner */}
               {showExplanation[currentIdx] ? (
                 <div
-                  className={`rounded-xl border p-4 text-xs leading-relaxed animate-in fade-in slide-in-from-top-1 ${
+                  className={cn(
+                    "rounded-xl border p-4 text-xs leading-relaxed animate-in fade-in slide-in-from-top-1",
                     isCorrect
                       ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200"
-                      : "border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200"
-                  }`}
+                      : "border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200",
+                  )}
                 >
                   <div className="flex items-center gap-1.5 font-bold mb-1">
                     {isCorrect ? (
@@ -239,70 +283,191 @@ export function ConceptQuizModal({
               ) : null}
             </div>
           ) : (
-            /* Final Diagnostic Results Summary */
+            /* -------------------------------------------------------------------------- */
+            /*                             RESULTS SCREEN                                 */
+            /* -------------------------------------------------------------------------- */
             <div className="space-y-6 text-center py-2 animate-in zoom-in-95 duration-200">
-              <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-1 shadow-inner">
-                <Award className="size-7" />
+              {/* Status Icon */}
+              <div
+                className={cn(
+                  "inline-flex size-16 items-center justify-center rounded-2xl mb-1 shadow-inner",
+                  isPassed
+                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    : "bg-destructive/15 text-destructive",
+                )}
+              >
+                {isPassed ? <Award className="size-8" /> : <AlertTriangle className="size-8" />}
               </div>
 
-              <div className="space-y-1">
-                <h4 className="text-xl font-bold tracking-tight text-foreground">
-                  Diagnostic Quiz Complete
+              {/* Title & Status Header */}
+              <div className="space-y-1.5">
+                <h4 className="text-2xl font-bold tracking-tight text-foreground">
+                  {isPassed ? "Concept Quiz Passed!" : "Quiz Failed — Minimum Score Not Met"}
                 </h4>
-                <p className="text-xs text-muted-foreground">
-                  Assessment of student mastery standing on{" "}
-                  <span className="font-semibold text-foreground">{quiz.conceptName}</span>
+                <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                  {isPassed
+                    ? `Congratulations! You met the minimum passing threshold of ${MINIMUM_PASSING_PERCENT}%. Your concept mastery has been recorded.`
+                    : `You scored ${scorePercent}%, which is below the mandatory passing threshold (${MINIMUM_PASSING_PERCENT}%). To ensure conceptual mastery, you must review your mistakes below and repeat the quiz.`}
                 </p>
               </div>
 
               {/* Score Metric Card */}
-              <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-muted/30 p-5 shadow-xs">
-                <span className="text-4xl font-extrabold font-mono tracking-tight text-foreground">
+              <div
+                className={cn(
+                  "flex flex-col items-center justify-center rounded-2xl border p-6 shadow-xs",
+                  isPassed
+                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    : "border-destructive/30 bg-destructive/5",
+                )}
+              >
+                <span
+                  className={cn(
+                    "text-5xl font-extrabold font-mono tracking-tight",
+                    isPassed
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-destructive",
+                  )}
+                >
                   {scorePercent}%
                 </span>
-                <span className="text-xs text-muted-foreground mt-1">
-                  {correctCount} of {total} concept checks answered correctly
+                <span className="text-xs text-muted-foreground mt-1.5">
+                  {correctCount} of {total} concept checks answered correctly · (Required: ≥ {MINIMUM_PASSING_PERCENT}%)
                 </span>
 
                 <div
-                  className={`mt-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${standingColor}`}
+                  className={cn(
+                    "mt-4 inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1 text-xs font-semibold",
+                    isPassed
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                      : "border-destructive/30 bg-destructive/10 text-destructive",
+                  )}
                 >
-                  <Sparkles className="size-3.5" />
-                  <span>{standingTitle}</span>
+                  {isPassed ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
+                  <span>
+                    {isPassed
+                      ? "Mastery Standing: Mastered"
+                      : "Status: Repeat Required (Failing Standing)"}
+                  </span>
                 </div>
               </div>
 
-              {/* Advisory Insight */}
-              <div className="rounded-xl border border-border/70 bg-card p-4 text-left shadow-2xs">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                  Mastery Diagnostic Feedback
-                </p>
-                <p className="text-xs text-muted-foreground leading-relaxed">{standingAdvice}</p>
+              {/* Review of Missed Questions to "Figure Out What Happened" */}
+              <div className="space-y-3 text-left">
+                <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <FileText className="size-3.5 text-primary" />
+                    <span>Conceptual Question Breakdown & Feedback</span>
+                  </span>
+                  <span className="text-[11px] text-muted-foreground font-mono">
+                    {correctCount}/{total} Correct
+                  </span>
+                </div>
+
+                <div className="space-y-3 max-h-60 overflow-y-auto no-scrollbar pr-1">
+                  {quiz.questions.map((q, qIdx) => {
+                    const studentAns = selectedAnswers[qIdx];
+                    const questionPassed = studentAns === q.answerIndex;
+
+                    return (
+                      <div
+                        key={q.id}
+                        className={cn(
+                          "rounded-xl border p-3.5 text-xs space-y-2",
+                          questionPassed
+                            ? "border-emerald-500/30 bg-emerald-500/5"
+                            : "border-destructive/30 bg-destructive/5",
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-semibold text-foreground">
+                            Q{qIdx + 1}: {q.question}
+                          </span>
+                          <span
+                            className={cn(
+                              "rounded px-1.5 py-0.5 text-[10px] font-bold shrink-0",
+                              questionPassed
+                                ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                                : "bg-destructive/20 text-destructive",
+                            )}
+                          >
+                            {questionPassed ? "Correct" : "Incorrect"}
+                          </span>
+                        </div>
+
+                        {!questionPassed && studentAns !== undefined ? (
+                          <div className="text-[11px] text-destructive flex items-start gap-1">
+                            <span className="font-bold">Your Choice:</span>
+                            <span>{q.options[studentAns]}</span>
+                          </div>
+                        ) : null}
+
+                        <div className="text-[11px] text-emerald-700 dark:text-emerald-300 flex items-start gap-1">
+                          <span className="font-bold">Correct Concept:</span>
+                          <span>{q.options[q.answerIndex]}</span>
+                        </div>
+
+                        <div className="text-[11px] text-muted-foreground pt-1 border-t border-border/40">
+                          <span className="font-semibold text-foreground">Why: </span>
+                          <span>{q.explanation}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                <Button variant="outline" size="sm" onClick={handleRestart} className="gap-2">
-                  <RotateCcw className="size-3.5" />
-                  <span>Retake Quiz</span>
-                </Button>
+              {/* Action Buttons: Forced Repetition for Failures */}
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
+                {!isPassed ? (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleRestart}
+                      className="gap-2 bg-destructive hover:bg-destructive/90 text-white font-semibold text-xs shadow-md"
+                    >
+                      <RotateCcw className="size-3.5" />
+                      <span>Repeat Quiz Now (Forced Retake)</span>
+                    </Button>
 
-                {lessonId ? (
-                  <Button asChild variant="secondary" size="sm" className="gap-2">
-                    <Link href={`/learn/${lessonId}`}>
-                      <BookOpen className="size-3.5" />
-                      <span>Read Interactive Lesson</span>
-                    </Link>
-                  </Button>
-                ) : null}
+                    {onOpenLearnWin ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          onClose();
+                          onOpenLearnWin();
+                        }}
+                        className="gap-2 text-xs font-medium"
+                      >
+                        <BookOpen className="size-3.5" />
+                        <span>Review Docs & Slides in LearnWin</span>
+                      </Button>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRestart}
+                      className="gap-2 text-xs"
+                    >
+                      <RotateCcw className="size-3.5" />
+                      <span>Retake Quiz for Practice</span>
+                    </Button>
 
-                <Button asChild size="sm" className="gap-2">
-                  <Link href="/practice">
-                    <Code2 className="size-3.5" />
-                    <span>Practice in Code Lab</span>
-                    <ArrowRight className="size-3.5" />
-                  </Link>
-                </Button>
+                    <Button asChild size="sm" className="gap-2 text-xs font-semibold">
+                      <Link href="/practice">
+                        <Code2 className="size-3.5" />
+                        <span>Proceed to Practice Lab</span>
+                        <ArrowRight className="size-3.5" />
+                      </Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -310,7 +475,7 @@ export function ConceptQuizModal({
 
         {/* Modal Footer Controls */}
         {!isFinished ? (
-          <div className="flex items-center justify-between border-t border-border/60 bg-muted/20 px-6 py-3.5">
+          <div className="flex items-center justify-between border-t border-border/60 bg-muted/20 px-6 py-3.5 shrink-0">
             <Button
               variant="outline"
               size="sm"
@@ -328,7 +493,7 @@ export function ConceptQuizModal({
                 onClick={onClose}
                 className="text-xs text-muted-foreground"
               >
-                Close
+                Cancel
               </Button>
               <Button
                 size="sm"
@@ -336,15 +501,18 @@ export function ConceptQuizModal({
                 disabled={!showExplanation[currentIdx]}
                 className="text-xs gap-1.5"
               >
-                <span>{currentIdx === total - 1 ? "Complete Quiz" : "Next Question"}</span>
+                <span>{currentIdx === total - 1 ? "Submit & View Results" : "Next Question"}</span>
                 <ArrowRight className="size-3.5" />
               </Button>
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-end border-t border-border/60 bg-muted/20 px-6 py-3">
+          <div className="flex items-center justify-between border-t border-border/60 bg-muted/20 px-6 py-3.5 shrink-0">
+            <span className="text-[11px] text-muted-foreground">
+              {isPassed ? "Mastery verified" : "Minimum 70% required to pass this concept"}
+            </span>
             <Button size="sm" onClick={onClose} className="text-xs">
-              Done
+              {isPassed ? "Done" : "Close (Retry Pending)"}
             </Button>
           </div>
         )}
