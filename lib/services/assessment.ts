@@ -30,6 +30,7 @@ import { RateLimitError, RunQueue } from "@/sandbox/queue";
 import { gradeOutput } from "@/sandbox/grade";
 import { DockerSandboxRunner } from "@/sandbox/docker-runner";
 import type { SandboxRunner } from "@/sandbox/types";
+import { prepareExecutionCode } from "@/lib/engine/harness";
 
 const PASS_THRESHOLD = 1;
 
@@ -169,7 +170,16 @@ export async function runSession(
   const session = await ownedSession(actor, sessionId);
   const visible = await loadTests(session.instituteId, session.questionId, "visible");
   assertLanguage(session.languages, input.language);
-  const graded = await executeTests(actor.id, input, visible, deps);
+
+  // Retrieve statement to prepare function block execution harness
+  const [qRow] = await db
+    .select({ statement: questions.statement })
+    .from(questions)
+    .where(eq(questions.id, session.questionId))
+    .limit(1);
+
+  const preparedCode = prepareExecutionCode(qRow?.statement ?? "", input.language, input.code);
+  const graded = await executeTests(actor.id, { ...input, code: preparedCode }, visible, deps);
   const results = toVisibleResults(graded);
   const passed = results.filter((test) => test.passed).length;
   await db.insert(attempts).values({
@@ -180,9 +190,17 @@ export async function runSession(
     code: input.code,
     resultJson: results,
     passRate: results.length === 0 ? 0 : passed / results.length,
-    sandboxLog: results.map((test) => test.message).join("\n"),
+    sandboxLog: results.map((test) => `${test.message}${test.stderr ? `\n${test.stderr}` : ""}`).join("\n"),
   });
-  return { tests: results };
+
+  const firstCompileErr = results.find((t) => t.outcome === "compile_error" && t.stderr)?.stderr;
+  const firstRuntimeErr = results.find((t) => t.outcome === "runtime_error" && t.stderr)?.stderr;
+
+  return {
+    tests: results,
+    compilationError: firstCompileErr,
+    runtimeError: firstRuntimeErr,
+  };
 }
 
 export async function submitSession(
@@ -217,7 +235,16 @@ export async function submitSession(
 
   const hidden = await loadTests(session.instituteId, session.questionId, "hidden");
   assertLanguage(session.languages, input.language);
-  const graded = await executeTests(actor.id, input, hidden, deps);
+
+  // Retrieve statement to prepare function block execution harness
+  const [qRow] = await db
+    .select({ statement: questions.statement })
+    .from(questions)
+    .where(eq(questions.id, session.questionId))
+    .limit(1);
+
+  const preparedCode = prepareExecutionCode(qRow?.statement ?? "", input.language, input.code);
+  const graded = await executeTests(actor.id, { ...input, code: preparedCode }, hidden, deps);
   const summary = toHiddenResults(graded);
   const correct = attemptIsCorrect(summary.passRate, PASS_THRESHOLD);
 
@@ -250,6 +277,7 @@ export async function submitSession(
 
   return { ...summary, correct, mastery, attemptId: attempt?.id ?? null };
 }
+
 
 async function applyMastery(studentId: string, instituteId: string, questionId: string, correct: boolean) {
   const tagged = await db

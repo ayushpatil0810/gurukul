@@ -19,11 +19,13 @@ import type { PracticeQuestionDetail } from "@/lib/services/practice";
 interface ProblemDescriptionProps {
   question: PracticeQuestionDetail;
   onRestoreCode?: (code: string, language: string) => void;
+  isAssessment?: boolean;
 }
 
 export function ProblemDescription({
   question,
   onRestoreCode,
+  isAssessment = false,
 }: ProblemDescriptionProps) {
   const [activeTab, setActiveTab] = useState<"description" | "editorial" | "submissions">("description");
   const [openHintIndex, setOpenHintIndex] = useState<number | null>(null);
@@ -47,18 +49,20 @@ export function ProblemDescription({
           <span>Description</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab("editorial")}
-          className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
-            activeTab === "editorial"
-              ? "bg-background text-foreground shadow-2xs"
-              : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
-          }`}
-        >
-          <Lightbulb className="size-3.5 text-amber-500" />
-          <span>Editorial</span>
-        </button>
+        {!isAssessment ? (
+          <button
+            type="button"
+            onClick={() => setActiveTab("editorial")}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
+              activeTab === "editorial"
+                ? "bg-background text-foreground shadow-2xs"
+                : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+            }`}
+          >
+            <Lightbulb className="size-3.5 text-amber-500" />
+            <span>Editorial</span>
+          </button>
+        ) : null}
 
         <button
           type="button"
@@ -189,7 +193,7 @@ export function ProblemDescription({
             ) : null}
 
             {/* Hints Accordion */}
-            {question.hints.length > 0 ? (
+            {!isAssessment && question.hints.length > 0 ? (
               <div className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <Lightbulb className="size-3.5 text-amber-500" />
@@ -231,7 +235,7 @@ export function ProblemDescription({
           </>
         ) : null}
 
-        {activeTab === "editorial" ? (
+        {activeTab === "editorial" && !isAssessment ? (
           <div className="space-y-5 text-xs">
             <div className="flex items-center gap-2 pb-2 border-b border-border/60">
               <Sparkles className="size-4 text-amber-500" />

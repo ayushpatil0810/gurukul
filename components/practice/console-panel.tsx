@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
+  AlertOctagon,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock,
   Code2,
+  HelpCircle,
   Loader2,
   Play,
   Send,
@@ -30,7 +32,9 @@ export type SubmitTestResult = {
   total: number;
   correct: boolean;
   attemptId: string | null;
-  tests: { id: string; passed: boolean; category: string; message: string }[];
+  compilationError?: string;
+  runtimeError?: string;
+  tests: { id: string; passed: boolean; category: string; message: string; stderr?: string }[];
 };
 
 interface ConsolePanelProps {
@@ -61,8 +65,34 @@ export function ConsolePanel({
   const [activeTab, setActiveTab] = useState<"testcase" | "testresult">("testcase");
   const [selectedCaseIndex, setSelectedCaseIndex] = useState(0);
 
-  // If new results arrive, auto switch to testresult tab
+  // Auto switch to testresult tab when new results or errors arrive
+  useEffect(() => {
+    if (visibleResults || submitResult || error) {
+      setActiveTab("testresult");
+    }
+  }, [visibleResults, submitResult, error]);
+
   const hasResults = Boolean(visibleResults || submitResult || error);
+
+  // Detect any compilation, syntax, or runtime error from run or submit
+  const primaryErrorText =
+    error ||
+    submitResult?.compilationError ||
+    submitResult?.runtimeError ||
+    submitResult?.tests.find((t) => t.stderr)?.stderr ||
+    visibleResults?.find(
+      (r) => r.stderr && (r.outcome === "compile_error" || r.outcome === "runtime_error" || !r.passed),
+    )?.stderr ||
+    null;
+
+  const isSyntaxOrCompileError =
+    Boolean(primaryErrorText) &&
+    (/SyntaxError/i.test(primaryErrorText ?? "") ||
+      /compile_error/i.test(submitResult?.tests[0]?.category ?? "") ||
+      /compile/i.test(primaryErrorText ?? "") ||
+      /Unexpected token/i.test(primaryErrorText ?? "") ||
+      /ReferenceError/i.test(primaryErrorText ?? "") ||
+      /TypeError/i.test(primaryErrorText ?? ""));
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-200 shadow-xs">
@@ -102,7 +132,7 @@ export function ConsolePanel({
             {hasResults ? (
               <span
                 className={`size-2 rounded-full ${
-                  submitResult?.correct || visibleResults?.every((r) => r.passed)
+                  (submitResult?.correct || visibleResults?.every((r) => r.passed)) && !primaryErrorText
                     ? "bg-emerald-500"
                     : "bg-rose-500"
                 }`}
@@ -125,14 +155,14 @@ export function ConsolePanel({
 
       {/* Console Body (Collapsible) */}
       {!isCollapsed ? (
-        <div className="p-4 space-y-4 max-h-72 overflow-y-auto">
+        <div className="p-4 space-y-4 max-h-80 overflow-y-auto">
           {isBusy ? (
             <div className="flex flex-col items-center justify-center py-10 space-y-2 text-zinc-400">
               <Loader2 className="size-6 animate-spin text-emerald-400" />
               <p className="text-xs font-mono">
                 {activeAction === "submit"
-                  ? "Evaluating solution against test suite..."
-                  : "Compiling and running sample test cases..."}
+                  ? "Evaluating function block against complete test suite..."
+                  : "Compiling and running function block with sample inputs..."}
               </p>
             </div>
           ) : activeTab === "testcase" ? (
@@ -161,7 +191,7 @@ export function ConsolePanel({
                 <div className="space-y-2.5 text-xs font-mono">
                   <div>
                     <span className="text-[11px] text-zinc-400 uppercase tracking-wide">
-                      Input:
+                      Input Arguments:
                     </span>
                     <pre className="mt-1 overflow-x-auto rounded-lg bg-zinc-900 p-2.5 text-xs text-amber-300 border border-zinc-800">
                       {sampleTests[selectedCaseIndex].input.trim() || "(empty input)"}
@@ -170,7 +200,7 @@ export function ConsolePanel({
 
                   <div>
                     <span className="text-[11px] text-zinc-400 uppercase tracking-wide">
-                      Expected Output:
+                      Expected Return Value:
                     </span>
                     <pre className="mt-1 overflow-x-auto rounded-lg bg-zinc-900 p-2.5 text-xs text-emerald-400 border border-zinc-800">
                       {sampleTests[selectedCaseIndex].expectedOutput.trim()}
@@ -184,12 +214,32 @@ export function ConsolePanel({
           ) : (
             /* Test Result Tab */
             <div className="space-y-4">
-              {error ? (
-                <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
-                  <AlertCircle className="size-4 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold">Execution Error</p>
-                    <p className="font-mono text-[11px] mt-0.5">{error}</p>
+              {/* High-Visibility Execution & Syntax Error Banner */}
+              {primaryErrorText ? (
+                <div className="overflow-hidden rounded-xl border border-rose-500/40 bg-linear-to-b from-rose-950/40 to-rose-950/20 text-rose-200 shadow-lg">
+                  <div className="flex items-center justify-between border-b border-rose-500/30 bg-rose-900/30 px-3.5 py-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <AlertOctagon className="size-4 text-rose-400 shrink-0" />
+                      <span className="font-bold tracking-tight text-rose-300">
+                        {isSyntaxOrCompileError ? "Syntax / Compilation Error" : "Execution Runtime Error"}
+                      </span>
+                    </div>
+                    <span className="rounded bg-rose-500/20 px-2 py-0.5 text-[10px] font-mono font-semibold text-rose-300 border border-rose-500/30">
+                      Action Required
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 space-y-2.5">
+                    <div className="flex items-start gap-2 text-xs text-rose-200/90">
+                      <HelpCircle className="size-3.5 text-rose-400 shrink-0 mt-0.5" />
+                      <p className="text-[11px]">
+                        The code encountered an error during parsing or execution. Review the exact error description and stack trace below to fix the syntax error directly in your function body.
+                      </p>
+                    </div>
+
+                    <pre className="max-h-48 overflow-auto rounded-lg bg-black/80 p-3 font-mono text-[11px] text-rose-300 border border-rose-900/60 whitespace-pre-wrap leading-relaxed selection:bg-rose-900/50">
+                      {primaryErrorText}
+                    </pre>
                   </div>
                 </div>
               ) : null}
@@ -210,7 +260,7 @@ export function ConsolePanel({
                         <>
                           <XCircle className="size-5 text-rose-400" />
                           <span className="text-base font-bold text-rose-400">
-                            Wrong Answer
+                            {isSyntaxOrCompileError ? "Compile / Syntax Error" : "Wrong Answer"}
                           </span>
                         </>
                       )}
@@ -241,7 +291,7 @@ export function ConsolePanel({
                         <span className="font-mono text-zinc-300">Hidden Test {index + 1}</span>
                         <span
                           className={`font-semibold text-[11px] ${
-                            test.passed ? "text-emerald-400" : "text-amber-400"
+                            test.passed ? "text-emerald-400" : "text-rose-400"
                           }`}
                         >
                           {test.passed ? "Passed" : `${test.category}: ${test.message}`}
@@ -268,7 +318,7 @@ export function ConsolePanel({
                         <>
                           <XCircle className="size-5 text-rose-400" />
                           <span className="text-base font-bold text-rose-400">
-                            Wrong Answer
+                            {isSyntaxOrCompileError ? "Syntax / Compile Error" : "Wrong Answer"}
                           </span>
                         </>
                       )}
@@ -314,7 +364,7 @@ export function ConsolePanel({
                       {visibleResults[selectedCaseIndex].stdout ? (
                         <div>
                           <span className="text-[11px] text-zinc-400 uppercase tracking-wide">
-                            Your Output:
+                            Your Function Output:
                           </span>
                           <pre className="mt-1 overflow-x-auto rounded-lg bg-zinc-900 p-2.5 text-xs text-zinc-200 border border-zinc-800">
                             {visibleResults[selectedCaseIndex].stdout}
@@ -336,9 +386,9 @@ export function ConsolePanel({
                       {visibleResults[selectedCaseIndex].stderr ? (
                         <div>
                           <span className="text-[11px] text-rose-400 uppercase tracking-wide">
-                            Standard Error (stderr):
+                            Error Output (stderr):
                           </span>
-                          <pre className="mt-1 overflow-x-auto rounded-lg bg-rose-950/40 p-2.5 text-xs text-rose-300 border border-rose-900/50">
+                          <pre className="mt-1 overflow-x-auto rounded-lg bg-rose-950/40 p-2.5 text-xs text-rose-300 border border-rose-900/50 whitespace-pre-wrap">
                             {visibleResults[selectedCaseIndex].stderr}
                           </pre>
                         </div>
@@ -348,7 +398,7 @@ export function ConsolePanel({
                 </div>
               ) : null}
 
-              {!visibleResults && !submitResult && !error ? (
+              {!visibleResults && !submitResult && !primaryErrorText ? (
                 <div className="py-8 text-center text-xs text-zinc-500 font-mono">
                   You must run your code first to view execution test results.
                 </div>
