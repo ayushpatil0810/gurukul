@@ -12,12 +12,14 @@ export const metadata: Metadata = {
 };
 
 async function PracticeScreen({
-  moduleId,
-  questionId,
+  searchParams,
 }: {
-  moduleId?: string;
-  questionId?: string;
+  searchParams?: Promise<{ q?: string; questionId?: string; module?: string; moduleId?: string }>;
 }) {
+  const query = await searchParams;
+  const preferredModuleId = query?.module ?? query?.moduleId;
+  const preferredQuestionId = query?.q ?? query?.questionId;
+
   await requireAuth();
   const actor = await getActor();
   if (!actor || actor.role !== "student") {
@@ -28,12 +30,12 @@ async function PracticeScreen({
     );
   }
 
-  const catalog = await getPracticeCatalog(actor, moduleId);
+  const catalog = await getPracticeCatalog(actor, preferredModuleId);
 
   let initialQuestion = null;
-  if (questionId) {
+  if (preferredQuestionId) {
     try {
-      initialQuestion = await getPracticeQuestionDetail(actor, questionId);
+      initialQuestion = await getPracticeQuestionDetail(actor, preferredQuestionId);
     } catch {
       initialQuestion = null;
     }
@@ -47,15 +49,11 @@ async function PracticeScreen({
   );
 }
 
-export default async function PracticePage({
+export default function PracticePage({
   searchParams,
 }: {
   searchParams?: Promise<{ q?: string; questionId?: string; module?: string; moduleId?: string }>;
 }) {
-  const query = await searchParams;
-  const preferredModuleId = query?.module ?? query?.moduleId;
-  const preferredQuestionId = query?.q ?? query?.questionId;
-
   return (
     <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4">
       <Suspense
@@ -66,10 +64,7 @@ export default async function PracticePage({
           </div>
         }
       >
-        <PracticeScreen
-          moduleId={preferredModuleId}
-          questionId={preferredQuestionId}
-        />
+        <PracticeScreen searchParams={searchParams} />
       </Suspense>
     </div>
   );

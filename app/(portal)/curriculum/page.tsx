@@ -16,7 +16,14 @@ export const metadata: Metadata = {
     "Interactive course management and concept map roadmaps. Track module progress, prerequisite dependencies, and topological learning sequences.",
 };
 
-async function CurriculumScreen({ preferredModuleId }: { preferredModuleId?: string }) {
+async function CurriculumScreen({
+  searchParams,
+}: {
+  searchParams?: Promise<{ moduleId?: string; course?: string }>;
+}) {
+  const query = await searchParams;
+  const preferredModuleId = query?.moduleId ?? query?.course;
+
   await requireAuth();
   const actor = await getActor();
   if (!actor?.instituteId) {
@@ -60,14 +67,11 @@ async function CurriculumScreen({ preferredModuleId }: { preferredModuleId?: str
   return <StudentConceptMapView view={roadmapView} />;
 }
 
-export default async function CurriculumPage({
+export default function CurriculumPage({
   searchParams,
 }: {
-  searchParams: Promise<{ moduleId?: string; course?: string }>;
+  searchParams?: Promise<{ moduleId?: string; course?: string }>;
 }) {
-  const query = await searchParams;
-  const preferredModuleId = query?.moduleId ?? query?.course;
-
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
       <Suspense
@@ -80,7 +84,7 @@ export default async function CurriculumPage({
           </div>
         }
       >
-        <CurriculumScreen preferredModuleId={preferredModuleId} />
+        <CurriculumScreen searchParams={searchParams} />
       </Suspense>
     </div>
   );

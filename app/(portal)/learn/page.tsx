@@ -11,12 +11,13 @@ export const metadata: Metadata = {
 };
 
 async function LearnScreen({
-  moduleId,
-  conceptId,
+  searchParams,
 }: {
-  moduleId?: string;
-  conceptId?: string;
+  searchParams?: Promise<{ moduleId?: string; conceptId?: string; course?: string }>;
 }) {
+  const query = await searchParams;
+  const preferredModuleId = query?.moduleId ?? query?.course;
+
   await requireAuth();
   const actor = await getActor();
   if (!actor) return null;
@@ -28,18 +29,15 @@ async function LearnScreen({
     );
   }
 
-  const learnData = await getCourseLearnData(actor, moduleId);
-  return <LearnModuleView data={learnData} selectedConceptId={conceptId} />;
+  const learnData = await getCourseLearnData(actor, preferredModuleId);
+  return <LearnModuleView data={learnData} selectedConceptId={query?.conceptId} />;
 }
 
-export default async function LearnPage({
+export default function LearnPage({
   searchParams,
 }: {
   searchParams?: Promise<{ moduleId?: string; conceptId?: string; course?: string }>;
 }) {
-  const query = await searchParams;
-  const preferredModuleId = query?.moduleId ?? query?.course;
-
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
       <Suspense
@@ -50,7 +48,7 @@ export default async function LearnPage({
           </div>
         }
       >
-        <LearnScreen moduleId={preferredModuleId} conceptId={query?.conceptId} />
+        <LearnScreen searchParams={searchParams} />
       </Suspense>
     </div>
   );
