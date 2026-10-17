@@ -66,39 +66,64 @@ export class SessionRecorder {
     window.localStorage.setItem(this.storageKey, JSON.stringify(this.buffer.serialize()));
   }
 
+  private getTelemetryUrl(): string {
+    const configured = process.env.NEXT_PUBLIC_TELEMETRY_URL;
+    if (typeof window !== "undefined") {
+      const isHttps = window.location.protocol === "https:";
+      if (configured) {
+        if (isHttps && configured.startsWith("ws://")) {
+          return configured.replace(/^ws:\/\//, "wss://");
+        }
+        return configured;
+      }
+      const proto = isHttps ? "wss:" : "ws:";
+      return `${proto}//${window.location.host}/telemetry`;
+    }
+    return configured ?? "ws://localhost:3001";
+  }
+
   private connect() {
     if (this.closed) return;
-    const url = process.env.NEXT_PUBLIC_TELEMETRY_URL ?? "ws://localhost:3001";
-    const socket = new WebSocket(url);
-    this.socket = socket;
-    socket.addEventListener("open", () => this.flush());
-    socket.addEventListener("message", (message) => {
-      let body: { ok?: boolean; acked?: unknown; batchId?: unknown };
-      try {
-        body = JSON.parse(String(message.data)) as { ok?: boolean; acked?: unknown; batchId?: unknown };
-      } catch {
-        void this.post();
-        return;
-      }
-      const batchId = typeof body.batchId === "string" ? body.batchId : null;
-      if (!body.ok) {
+    try {
+      const url = this.getTelemetryUrl();
+      const socket = new WebSocket(url);
+      this.socket = socket;
+      socket.addEventListener("open", () => this.flush());
+      socket.addEventListener("message", (message) => {
+        let body: { ok?: boolean; acked?: unknown; batchId?: unknown };
+        try {
+          body = JSON.parse(String(message.data)) as { ok?: boolean; acked?: unknown; batchId?: unknown };
+        } catch {
+          void this.post();
+          return;
+        }
+        const batchId = typeof body.batchId === "string" ? body.batchId : null;
+        if (!body.ok) {
+          if (batchId) this.inflight.delete(batchId);
+          void this.post();
+          return;
+        }
         if (batchId) this.inflight.delete(batchId);
+        const acked = acknowledgementSeqs(body.acked);
+        if (acked === null || acked.length === 0) return;
+        this.buffer.acknowledge(acked);
+        this.persist();
+        this.flush();
+      });
+      socket.addEventListener("close", () => {
+        this.inflight.clear();
+        if (this.closed) return;
+        this.reconnectTimer = window.setTimeout(() => this.connect(), 1000);
         void this.post();
-        return;
-      }
-      if (batchId) this.inflight.delete(batchId);
-      const acked = acknowledgementSeqs(body.acked);
-      if (acked === null || acked.length === 0) return;
-      this.buffer.acknowledge(acked);
-      this.persist();
-      this.flush();
-    });
-    socket.addEventListener("close", () => {
-      this.inflight.clear();
-      if (this.closed) return;
-      this.reconnectTimer = window.setTimeout(() => this.connect(), 1000);
+      });
+      socket.addEventListener("error", () => {
+        void this.post();
+      });
+    } catch {
+      // Insecure WebSocket blocked by HTTPS or network failure: gracefully fall back to HTTP telemetry
+      this.socket = null;
       void this.post();
-    });
+    }
   }
 
   private flush() {
