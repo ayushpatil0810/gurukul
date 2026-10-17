@@ -1,0 +1,131 @@
+.portal-dashboard,
+body:has(.portal-dashboard) [data-slot="sidebar"][data-mobile="true"],
+body:has(.portal-dashboard) [data-slot="sheet-content"] {
+  --background: oklch(0.99 0.003 250);
+  --foreground: oklch(0.18 0.015 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.015 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.015 260);
+  --primary: oklch(0.48 0.18 262);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.01 255);
+  --secondary-foreground: oklch(0.25 0.03 260);
+  --muted: oklch(0.96 0.008 250);
+  --muted-foreground: oklch(0.50 0.02 260);
+  --accent: oklch(0.95 0.025 262);
+  --accent-foreground: oklch(0.22 0.04 262);
+  --destructive: oklch(0.58 0.22 25);
+  --border: oklch(0.90 0.01 250);
+  --input: oklch(0.90 0.01 250);
+  --ring: oklch(0.48 0.18 262);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0.005 250);
+  --sidebar-foreground: oklch(0.18 0.015 260);
+  --sidebar-primary: oklch(0.48 0.18 262);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.95 0.015 255);
+  --sidebar-accent-foreground: oklch(0.22 0.03 260);
+  --sidebar-border: oklch(0.90 0.01 250);
+  --sidebar-ring: oklch(0.48 0.18 262);
+
+  /* LearnLoop Mastery & Telemetry Tokens */
+  --dashboard-mastered: oklch(0.62 0.16 160);
+  --dashboard-learning: oklch(0.55 0.18 262);
+  --dashboard-remediation: oklch(0.72 0.16 75);
+  --dashboard-secondary: oklch(0.58 0.15 285);
+}
+
+.portal-dashboard.dark,
+.dark .portal-dashboard,
+.dark body:has(.portal-dashboard) [data-slot="sidebar"][data-mobile="true"],
+.dark body:has(.portal-dashboard) [data-slot="sheet-content"] {
+  --background: oklch(0.14 0.015 260);
+  --foreground: oklch(0.96 0.005 250);
+  --card: oklch(0.18 0.018 260);
+  --card-foreground: oklch(0.96 0.005 250);
+  --popover: oklch(0.18 0.018 260);
+  --popover-foreground: oklch(0.96 0.005 250);
+  --primary: oklch(0.65 0.18 260);
+  --primary-foreground: oklch(0.12 0.02 260);
+  --secondary: oklch(0.24 0.02 260);
+  --secondary-foreground: oklch(0.96 0.005 250);
+  --muted: oklch(0.22 0.015 260);
+  --muted-foreground: oklch(0.68 0.02 250);
+  --accent: oklch(0.24 0.03 260);
+  --accent-foreground: oklch(0.96 0.005 250);
+  --destructive: oklch(0.65 0.20 25);
+  --border: oklch(0.28 0.02 260);
+  --input: oklch(0.28 0.02 260);
+  --ring: oklch(0.65 0.18 260);
+  --sidebar: oklch(0.16 0.015 260);
+  --sidebar-foreground: oklch(0.96 0.005 250);
+  --sidebar-primary: oklch(0.65 0.18 260);
+  --sidebar-primary-foreground: oklch(0.12 0.02 260);
+  --sidebar-accent: oklch(0.23 0.025 260);
+  --sidebar-accent-foreground: oklch(0.96 0.005 250);
+  --sidebar-border: oklch(0.26 0.02 260);
+  --sidebar-ring: oklch(0.65 0.18 260);
+
+  /* LearnLoop Mastery & Telemetry Tokens - Dark Mode */
+  --dashboard-mastered: oklch(0.70 0.16 160);
+  --dashboard-learning: oklch(0.65 0.18 260);
+  --dashboard-remediation: oklch(0.76 0.16 75);
+  --dashboard-secondary: oklch(0.68 0.16 285);
+}
+
+.portal-dashboard.no-scrollbar,
+.portal-dashboard.no-scrollbar *,
+.portal-dashboard .no-scrollbar,
+.portal-dashboard .no-scrollbar * {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.portal-dashboard .dashboard-load-segment {
+  width: var(--department-width);
+  animation: dashboard-load-grow 700ms ease-out both;
+}
+
+.portal-dashboard .dashboard-resource-progress {
+  transform-origin: left;
+  animation: dashboard-resource-grow 700ms ease-out both;
+}
+
+@keyframes dashboard-load-grow {
+  from {
+    width: 0;
+  }
+  to {
+    width: var(--department-width);
+  }
+}
+
+@keyframes dashboard-resource-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.portal-dashboard.no-scrollbar::-webkit-scrollbar,
+.portal-dashboard.no-scrollbar *::-webkit-scrollbar,
+.portal-dashboard .no-scrollbar::-webkit-scrollbar,
+.portal-dashboard .no-scrollbar *::-webkit-scrollbar {
+  display: none;
+}
+
+[data-slot="dropdown-menu-content"] [data-slot="dropdown-menu-item"],
+[data-slot="dropdown-menu-content"] [data-slot="dropdown-menu-sub-trigger"] {
+  padding-inline: 0.625rem;
+  padding-block: 0.625rem;
+}
+
+[data-slot="dropdown-menu-content"] [data-slot="dropdown-menu-checkbox-item"],
+[data-slot="dropdown-menu-content"] [data-slot="dropdown-menu-radio-item"] {
+  padding-block: 0.625rem;
+  padding-left: 0.625rem;
+  padding-right: 2rem;
+}

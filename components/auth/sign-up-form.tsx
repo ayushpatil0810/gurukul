@@ -14,7 +14,7 @@ interface SignUpFormProps {
   redirectTo?: string;
 }
 
-export function SignUpForm({ redirectTo = "/" }: SignUpFormProps) {
+export function SignUpForm({ redirectTo = "/dashboard" }: SignUpFormProps) {
   const router = useRouter();
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");

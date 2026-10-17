@@ -6,6 +6,7 @@ import { AppError } from "@/lib/errors";
 import { readStudentDashboard, readTrainerDashboard } from "@/lib/services/dashboard";
 import { getClassroomAnalytics, type ClassroomAnalyticsSummary } from "@/lib/services/classroom-analytics";
 import { StudentLearning, TrainerLearning } from "@/components/dashboard/views";
+import { PortalDashboardView } from "@/components/portal/dashboard-view";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -37,10 +38,29 @@ async function DashboardScreen({
     if (error instanceof AppError && (error.statusCode === 403 || error.statusCode === 404)) denied = error.message;
     else throw error;
   }
-  if (denied) return <p className="text-sm">{denied}</p>;
-  if (student) return <StudentLearning view={student} analytics={analytics} />;
-  if (trainer) return <TrainerLearning batchId={query.batch} moduleId={query.module} view={trainer} analytics={analytics} />;
-  return null;
+
+  return (
+    <div className="space-y-8">
+      {/* New Template Executive Dashboard View */}
+      <PortalDashboardView userName={actor.name} role={actor.role} />
+
+      {/* Role-Specific Learning & Mastery Records */}
+      <div className="px-4 md:px-6 pb-12">
+        {denied ? (
+          <p className="text-sm text-destructive">{denied}</p>
+        ) : student ? (
+          <StudentLearning view={student} analytics={analytics} />
+        ) : trainer ? (
+          <TrainerLearning
+            batchId={query.batch}
+            moduleId={query.module}
+            view={trainer}
+            analytics={analytics}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 export default function DashboardPage({
@@ -49,10 +69,8 @@ export default function DashboardPage({
   searchParams: Promise<{ batch?: string; module?: string }>;
 }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <Suspense fallback={<p className="text-sm">Loading the dashboard…</p>}>
-        <DashboardScreen searchParams={searchParams} />
-      </Suspense>
-    </div>
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground animate-pulse">Loading dashboard...</div>}>
+      <DashboardScreen searchParams={searchParams} />
+    </Suspense>
   );
 }
