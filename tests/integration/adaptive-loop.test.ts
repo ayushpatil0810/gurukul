@@ -93,7 +93,6 @@ let functionsConceptId: string;
 let classesConceptId: string;
 let testModuleId: string;
 let variablesQuestionId: string;
-let functionsQuestionId: string;
 let variablesLessonId: string;
 let functionsLessonId: string;
 
@@ -161,13 +160,12 @@ beforeAll(async () => {
   });
   variablesQuestionId = q1.id;
 
-  const q2 = await createQuestion(trainer, {
+  await createQuestion(trainer, {
     statement: `Solve Functions Problem ${instituteId}`,
     difficulty: 2,
     conceptIds: [functionsConceptId],
     ...qPayload,
   });
-  functionsQuestionId = q2.id;
 
   // Published Lessons
   const [l1] = await db
@@ -465,11 +463,11 @@ describe("Phase 5.3: Adaptive Learning Loop", () => {
       { seq: 2, t: 200, type: "recommendation_click", payload: recClickPayload },
     ]);
 
-    // 4. Formative interactions (docker_command, diagram_node_click, mentor_query_sent)
+    // 4. Formative interactions (docker_lab_action, diagram_node_inspect, mentor_action)
     await recordClassroomTelemetry(ada, functionsLessonId, [
-      { seq: 3, t: 300, type: "diagram_node_click", payload: { nodeId: "node-1", label: "Functions Diagram" } },
-      { seq: 4, t: 400, type: "docker_command", payload: { command: "docker ps", exitCode: 0, durationMs: 12 } },
-      { seq: 5, t: 500, type: "mentor_query_sent", payload: { questionLength: 20, sceneIndex: 0 } },
+      { seq: 3, t: 300, type: "diagram_node_inspect", payload: { nodeId: "node-1", nodeLabel: "Functions Diagram" } },
+      { seq: 4, t: 400, type: "docker_lab_action", payload: { action: "run", status: "success", passed: true } },
+      { seq: 5, t: 500, type: "mentor_action", payload: { action: "hint" } },
     ]);
 
     // Verify Ada's mastery is completely unchanged

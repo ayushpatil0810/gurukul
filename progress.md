@@ -346,6 +346,28 @@ Classroom telemetry, trust boundary & adaptive decoupling:
 - Security audit: confirmed authentication, session ownership, cross-student protection, institute scoping, 16KB payload limits, completion deduplication, and sensitive metadata sanitization; identified that HTTP sliding-window rate limiting on `/api/lessons/[id]/telemetry` is not yet implemented (relies on payload/batch bounds and 5s client debouncing). Browser automation was not re-run in Phase 5.2 (UI components verified via browser QA in Phase 5.1).
 - Working tree preserved uncommitted (no git commits made, no unnecessary migrations).
 
+## Phase 5.3 — Adaptive Learning Loop
+
+Implemented and documented in `docs/PHASE5_3_ADAPTIVE_LEARNING_LOOP.md`.
+
+Closed-loop adaptive learning architecture:
+- Authoritative Evidence Boundary: only server-validated submissions from graded coding sessions (`session.mode === "graded"`) trigger BKT mastery updates (`applyMastery()`). Idempotency check in `submitSession()` prevents duplicate requests from re-applying mastery or creating redundant audit records.
+- Adaptive Selection & Remediation Engine (`lib/services/adaptive-loop.ts`): orchestrates concept prerequisite DAG traversal, stored mastery evaluation against the 0.80 threshold, deterministic candidate tie-breaking, calibrated question selection targeting ~70% predicted success, and published visual lesson matching. Concepts blocked by unmastered prerequisites produce prerequisite remediation activities.
+- Missing-Data Fidelity: unrecorded mastery is strictly represented as `null` (never converted to `0` or the BKT prior `0.20`), and labeled "Not recorded" in UI and APIs. Internal selector prior is decoupled from observed database state.
+- Explainable Recommendations: deterministic, evidence-grounded reason generation based on actual database mastery, prerequisite readiness, and calibrated challenge targets. Zero LLM hallucinations; secret strings, hidden tests, and answer keys are strictly protected.
+- Recommendation Lifecycle & Telemetry: added `recommendation_view` and `recommendation_click` event schemas (`lib/validations/classroom-telemetry.ts`) and analytics aggregation (`lib/services/classroom-analytics.ts`). Ingesting recommendation events or viewing lessons does not alter mastery state.
+- Adaptive Student UI (`components/dashboard/views.tsx`): upgraded student dashboard recommendation component to an accessible card with activity badges, action buttons ("Start Interactive Lesson", "Start Coding Practice", "Review Prerequisite Lesson"), prerequisite readiness checklist, and evidence summary chips.
+- Authenticated Recommendation API (`app/api/learning/recommendation/route.ts`): `GET /api/learning/recommendation` endpoint with Better Auth actor authentication, RBAC institute boundaries, and input sanitization.
+- Automated verification on the final tree:
+  - `bun run test`: **43 test files passed, 218 tests passed (100% pass rate)**.
+  - `tests/integration/adaptive-loop.test.ts`: **9 comprehensive integration tests passing**.
+  - `bun run lint`: **0 errors, 0 warnings**.
+  - `bun run typecheck`: **0 errors (`tsc --noEmit`)**.
+  - `bun run build`: **31 routes compiled successfully on Next.js 16.4.2**.
+  - `scripts/probe-mastery.mjs`: Pre/post-test DB states strictly identical (0 unwanted mutations).
+  - Live API smoke test: `GET /api/learning/recommendation` verified live on port 3000 (401 unauthenticated, 200 authenticated for Ada with complete adaptive payload).
+- Working tree preserved uncommitted (no git commits or pushes performed, no schema migrations needed).
+
 ## Not started
 
 Per-batch threshold tuning and student-visible signals stay P1. Periodic snapshots and trainer notes from the PRD are not built. A keepalive batch that never reached the server still cannot be replayed.
