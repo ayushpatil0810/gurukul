@@ -1,6 +1,6 @@
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { batchMembers, batchTrainers, batches, concepts, consents, courseBatches, courseModules, courses, events, institutes, learningSessions, masteryState, modules, questions, sectionConcepts, sections, user } from "@/db/schema";
+import { batchMembers, batchTrainers, batches, concepts, consents, courseBatches, courseModules, courses, events, institutes, learningSessions, masteryState, modules, questions, sectionConcepts, sections, tests, user } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { parseRole } from "@/lib/auth-fields";
 import type { Actor } from "@/lib/auth/actor";
@@ -575,12 +575,42 @@ async function main() {
   }
 
   for (const question of DEMO_QUESTIONS) {
+    const allTests = [
+      ...question.visibleTests.map((t) => ({ visibility: "visible" as const, ...t })),
+      ...question.hiddenTests.map((t) => ({ visibility: "hidden" as const, ...t })),
+    ];
+
     const [existing] = await db
       .select({ id: questions.id })
       .from(questions)
       .where(and(eq(questions.instituteId, instituteId), eq(questions.statement, question.statement)))
       .limit(1);
-    if (existing) continue;
+
+    if (existing) {
+      // Update starter code to modern function block
+      await db
+        .update(questions)
+        .set({
+          starterCodeJson: { javascript: question.starter },
+          difficulty: question.difficulty,
+          status: "published",
+        })
+        .where(eq(questions.id, existing.id));
+
+      // Refresh tests with expanded suite
+      await db.delete(tests).where(eq(tests.questionId, existing.id));
+      for (const t of allTests) {
+        await db.insert(tests).values({
+          instituteId,
+          questionId: existing.id,
+          visibility: t.visibility,
+          input: t.input,
+          expectedOutput: t.expectedOutput,
+        });
+      }
+      continue;
+    }
+
     const conceptId = conceptIds.get(question.concept);
     if (!conceptId) throw new Error(`Missing concept ${question.concept}`);
     await createQuestion(trainer, {
@@ -590,12 +620,10 @@ async function main() {
       starterCode: { javascript: question.starter },
       conceptIds: [conceptId],
       status: "published",
-      tests: [
-        { visibility: "visible", ...question.visible },
-        { visibility: "hidden", ...question.hidden },
-      ],
+      tests: allTests,
     });
   }
+
 
   const adaId = ids.get("ada@techsummit.example");
   const benId = ids.get("ben@techsummit.example");

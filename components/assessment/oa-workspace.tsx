@@ -16,10 +16,12 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { OnMount } from "@monaco-editor/react";
 import {
+  AlertOctagon,
   AlertTriangle,
   CheckCircle2,
   Expand,
   FileCheck2,
+  HelpCircle,
   Lock,
   Maximize2,
   Minimize2,
@@ -29,6 +31,7 @@ import {
   Terminal,
   Timer,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { ExplainStep } from "@/components/practice/explain-step";
 import { SessionRecorder } from "@/components/practice/recorder";
@@ -77,9 +80,12 @@ type SubmitResult = {
   total: number;
   correct: boolean;
   attemptId: string | null;
-  tests: { id: string; passed: boolean; category: string; message: string }[];
+  compilationError?: string;
+  runtimeError?: string;
+  tests: { id: string; passed: boolean; category: string; message: string; stderr?: string }[];
   mastery: { before: number; after: number }[];
 };
+
 
 type SessionInfo = { id: string; mode: "practice" | "graded"; recording: boolean };
 
@@ -552,7 +558,51 @@ export function OAWorkspace({
         </p>
       )}
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {/* Primary Syntax / Compilation / Runtime Error Callout */}
+      {(() => {
+        const primaryErrorText =
+          error ||
+          submitResult?.compilationError ||
+          submitResult?.runtimeError ||
+          submitResult?.tests.find((t) => t.stderr)?.stderr ||
+          visibleResults?.find((r) => r.stderr && (r.outcome === "compile_error" || r.outcome === "runtime_error" || !r.passed))?.stderr;
+
+        if (!primaryErrorText) return null;
+
+        const isSyntaxError =
+          /SyntaxError/i.test(primaryErrorText) ||
+          /Unexpected token/i.test(primaryErrorText) ||
+          /ReferenceError/i.test(primaryErrorText) ||
+          /compile_error/i.test(submitResult?.tests[0]?.category ?? "") ||
+          /TypeError/i.test(primaryErrorText);
+
+        return (
+          <section className="overflow-hidden rounded-xl border border-rose-500/40 bg-linear-to-b from-rose-950/40 to-rose-950/20 text-rose-200 shadow-md">
+            <div className="flex items-center justify-between border-b border-rose-500/30 bg-rose-900/30 px-4 py-2.5 text-xs">
+              <div className="flex items-center gap-2">
+                <AlertOctagon className="size-4 text-rose-400 shrink-0" />
+                <span className="font-bold tracking-tight text-rose-300">
+                  {isSyntaxError ? "Syntax / Compilation Error Detected" : "Execution Runtime Error"}
+                </span>
+              </div>
+              <span className="rounded bg-rose-500/20 px-2 py-0.5 text-[10px] font-mono font-semibold text-rose-300 border border-rose-500/30">
+                Action Required
+              </span>
+            </div>
+            <div className="p-4 space-y-2.5">
+              <div className="flex items-start gap-2 text-xs text-rose-200/90">
+                <HelpCircle className="size-3.5 text-rose-400 shrink-0 mt-0.5" />
+                <p className="text-[11px]">
+                  A syntactical or execution exception occurred. Review the line numbers and stack trace below to correct your code in the function block before re-evaluating.
+                </p>
+              </div>
+              <pre className="max-h-56 overflow-auto rounded-lg bg-black/80 p-3.5 font-mono text-xs text-rose-300 border border-rose-900/60 whitespace-pre-wrap leading-relaxed selection:bg-rose-900/50">
+                {primaryErrorText}
+              </pre>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Visible Run Output */}
       {visibleResults ? (

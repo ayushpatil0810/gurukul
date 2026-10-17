@@ -145,35 +145,36 @@ const ENRICHED_METADATA: Record<
       {
         input: "2 3",
         output: "5",
-        explanation: "Reading numbers 2 and 3 from stdin, their sum is 2 + 3 = 5.",
+        explanation: "Function sum(2, 3) returns 2 + 3 = 5.",
       },
       {
         input: "10 -4",
         output: "6",
-        explanation: "10 + (-4) = 6.",
+        explanation: "Function sum(10, -4) returns 10 + (-4) = 6.",
       },
     ],
     constraints: [
       "-10^9 <= a, b <= 10^9",
-      "Read from standard input (stdin) using fs.readFileSync(0, 'utf8')",
-      "Print result to standard output (stdout) followed by newline",
+      "Implement the body of function sum(a, b)",
+      "Return the computed numeric sum directly",
     ],
     hints: [
-      "Use `fs.readFileSync(0, 'utf8')` to consume all input from file descriptor 0.",
-      "Use `.trim().split(/\\s+/)` to separate tokens across whitespace and map them to `Number`.",
+      "Input parameters `a` and `b` are passed directly into the function.",
+      "Return `a + b` from the body of `sum(a, b)`.",
     ],
     editorial: {
       intuition:
-        "Standard competitive programming problems pass parameters through standard input. Parsing tokens properly is the foundation of competitive I/O.",
+        "Standard LeetCode function style accepts parameters directly through the function signature.",
       approach:
-        "1. Read all input synchronously.\n2. Clean whitespace and split on any sequence of whitespace characters.\n3. Cast token strings to numeric values and output their sum using console.log.",
-      keyConcepts: ["Variables", "Standard Input (stdin)", "Arithmetic Operators", "Token Parsing"],
+        "1. Receive arguments `a` and `b`.\n2. Return the evaluated expression `a + b`.",
+      keyConcepts: ["Variables", "Function Parameters", "Arithmetic Operators", "Return Values"],
       complexity: {
         time: "O(1) arithmetic operations",
         space: "O(1) memory auxiliary",
       },
     },
   },
+
   "Read one integer and print its double.": {
     title: "Double the Integer",
     examples: [
