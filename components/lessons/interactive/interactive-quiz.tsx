@@ -153,9 +153,12 @@ export function InteractiveKnowledgeCheck({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-border/80 bg-muted/30 p-3 text-xs text-muted-foreground">
-        <p className="font-semibold text-foreground">Interactive Knowledge Check</p>
-        <p className="mt-0.5">
+      <div className="rounded-xl border border-border/80 bg-muted/40 p-4 text-xs text-muted-foreground shadow-2xs">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+          <p className="font-semibold text-foreground text-xs">Interactive Knowledge Check</p>
+        </div>
+        <p className="mt-1 leading-relaxed">
           This check is ungraded and for self-assessment. It does not alter your mastery score or assessment records.
         </p>
       </div>
@@ -173,13 +176,13 @@ export function InteractiveKnowledgeCheck({
           return (
             <li
               key={question.id}
-              className="rounded-xl border border-border bg-card/60 p-4 shadow-sm backdrop-blur space-y-4"
+              className="rounded-xl border border-border/80 bg-card/60 p-5 shadow-xs backdrop-blur-xs space-y-4"
             >
               <div className="flex items-start gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-xs font-bold text-primary">
                   {qIdx + 1}
                 </span>
-                <h3 className="font-medium text-foreground text-sm text-pretty pt-0.5">
+                <h3 className="font-semibold text-foreground text-sm text-pretty pt-0.5 leading-snug">
                   {question.prompt}
                 </h3>
               </div>
@@ -195,19 +198,19 @@ export function InteractiveKnowledgeCheck({
                       correctAnswer &&
                       option.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
 
-                    let optionStyle = "border-border bg-card hover:bg-accent/40 text-foreground";
+                    let optionStyle = "border-border/80 bg-card hover:bg-accent/40 text-foreground";
 
                     if (isSubmitted) {
                       if (isOptionCorrectAnswer) {
                         optionStyle =
-                          "border-emerald-500 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200 font-medium";
+                          "border-emerald-500 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200 font-medium";
                       } else if (isOptionSelected && !isCorrect) {
-                        optionStyle = "border-red-500 bg-red-500/10 text-red-900 dark:text-red-200";
+                        optionStyle = "border-rose-500 bg-rose-500/10 text-rose-950 dark:text-rose-200";
                       } else {
-                        optionStyle = "border-border/40 bg-muted/20 opacity-60 text-muted-foreground";
+                        optionStyle = "border-border/40 bg-muted/20 opacity-50 text-muted-foreground";
                       }
                     } else if (isOptionSelected) {
-                      optionStyle = "border-primary bg-primary/10 text-primary font-medium ring-1 ring-primary";
+                      optionStyle = "border-primary bg-primary/10 text-primary font-medium ring-2 ring-primary/40";
                     }
 
                     return (
@@ -218,12 +221,12 @@ export function InteractiveKnowledgeCheck({
                         aria-checked={isOptionSelected}
                         disabled={isSubmitted || isSubmittingThis}
                         onClick={() => handleSelect(question.id, option)}
-                        className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left text-xs transition-colors ${optionStyle}`}
+                        className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left text-xs transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${optionStyle}`}
                       >
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-current font-mono text-[10px] font-bold">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-current font-mono text-[10px] font-bold">
                           {optionLetter}
                         </span>
-                        <span className="flex-1">{option}</span>
+                        <span className="flex-1 leading-relaxed">{option}</span>
                       </button>
                     );
                   })}
@@ -236,7 +239,7 @@ export function InteractiveKnowledgeCheck({
 
               {/* Error Message */}
               {errorMessage ? (
-                <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-700 dark:text-rose-300">
                   {errorMessage}
                 </div>
               ) : null}
@@ -248,17 +251,17 @@ export function InteractiveKnowledgeCheck({
                     type="button"
                     disabled={!selected || isSubmittingThis}
                     onClick={() => handleSubmit(question.id)}
-                    className="rounded-md bg-primary px-3.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                    className="rounded-md bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 transition-colors"
                   >
                     {isSubmittingThis ? "Checking…" : "Submit Answer"}
                   </button>
                 ) : (
                   <div className="flex items-center gap-3">
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border ${
                         isCorrect
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                          : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+                          : "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20"
                       }`}
                     >
                       {isCorrect ? "✓ Correct" : "✕ Incorrect"}
@@ -266,7 +269,7 @@ export function InteractiveKnowledgeCheck({
                     <button
                       type="button"
                       onClick={() => handleRetry(question.id)}
-                      className="rounded border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent"
+                      className="rounded-md border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring transition-colors"
                     >
                       Try Again
                     </button>
@@ -277,10 +280,10 @@ export function InteractiveKnowledgeCheck({
               {/* Post-submission Feedback & Explanation */}
               {isSubmitted && evaluation ? (
                 <div
-                  className={`rounded-lg border p-3 text-xs space-y-1 animate-in fade-in duration-200 ${
+                  className={`rounded-lg border p-3.5 text-xs space-y-1 animate-in fade-in duration-150 ${
                     isCorrect
                       ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-950 dark:text-emerald-200"
-                      : "border-red-500/30 bg-red-500/5 text-red-950 dark:text-red-200"
+                      : "border-rose-500/30 bg-rose-500/5 text-rose-950 dark:text-rose-200"
                   }`}
                 >
                   <p className="font-semibold">

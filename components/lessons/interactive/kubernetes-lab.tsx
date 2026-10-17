@@ -322,7 +322,7 @@ export function KubernetesLab({
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card/60 p-4 shadow-sm backdrop-blur">
+    <div className="space-y-4 rounded-xl border border-border/80 bg-card/60 p-4 sm:p-5 shadow-xs backdrop-blur-xs">
       {/* Header & Simulation Notice */}
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-3">
         <div>
@@ -330,7 +330,7 @@ export function KubernetesLab({
             <h3 className="font-semibold text-foreground text-sm tracking-tight">
               Flagship Lab: Kubernetes Cluster Simulation
             </h3>
-            <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-mono font-medium text-primary">
+            <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-mono font-semibold text-primary">
               Deterministic Sandbox
             </span>
           </div>
@@ -340,10 +340,10 @@ export function KubernetesLab({
         </div>
         <div className="flex items-center gap-2">
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium border ${
               state.deploymentStatus === "Healthy"
-                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse"
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+                : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 animate-pulse"
             }`}
           >
             <span
@@ -359,11 +359,17 @@ export function KubernetesLab({
               dispatch({ type: "RESET" });
               onLabAction?.("reset", 3, undefined, "normal");
             }}
-            className="rounded border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent"
+            className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring transition-colors"
           >
             Reset Lab
           </button>
         </div>
+      </div>
+
+      {/* Instructional simulation banner */}
+      <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+        <span>Educational sandbox: Simulates ReplicaSet controller loops, readiness probes, and EndpointSlice rerouting.</span>
       </div>
 
       {/* Control Panel: Replicas Slider & Action Buttons */}
@@ -409,9 +415,12 @@ export function KubernetesLab({
                 dispatch({ type: "TRIGGER_FAILURE", scenario: "readiness_probe_failure" });
                 onLabAction?.("simulate_failure", state.desiredReplicas, undefined, "degraded");
               }}
-              className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+              className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring transition-colors"
             >
-              ⚠ Simulate Readiness Probe Failure
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              Simulate Probe Failure
             </button>
           ) : (
             <button
@@ -420,9 +429,12 @@ export function KubernetesLab({
                 dispatch({ type: "APPLY_CORRECTIVE_ACTION" });
                 onLabAction?.("recover", state.desiredReplicas, undefined, "recovered");
               }}
-              className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 animate-pulse"
+              className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring animate-pulse transition-colors"
             >
-              🩹 Apply Fix: Patch Probe & Endpoint
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Apply Fix: Patch Probe & Endpoint
             </button>
           )}
 
@@ -432,9 +444,12 @@ export function KubernetesLab({
               dispatch({ type: "TRIGGER_ROLLING_UPDATE" });
               onLabAction?.("scale", state.desiredReplicas, undefined, "normal");
             }}
-            className="rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring transition-colors"
           >
-            🔄 Trigger Rolling Update
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Trigger Rolling Update
           </button>
         </div>
       </div>
@@ -446,7 +461,7 @@ export function KubernetesLab({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="font-mono font-semibold">svc/web-service</span>
-              <span className="rounded bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground border border-border">
+              <span className="rounded-md bg-background px-2 py-0.5 text-[10px] text-muted-foreground border border-border">
                 Type: LoadBalancer (Port 80 → 8080)
               </span>
             </div>
@@ -460,7 +475,7 @@ export function KubernetesLab({
         </div>
 
         {/* Pod Cards */}
-        <div className="grid gap-2.5 sm:grid-cols-3">
+        <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {state.pods.map((pod) => {
             const isSelected = selectedPod?.id === pod.id;
             const isUnhealthy = pod.status === "Unhealthy";
@@ -472,7 +487,7 @@ export function KubernetesLab({
                 onClick={() => handleSelectPod(pod)}
                 className={`flex flex-col items-start rounded-lg border p-3 text-left transition-all ${
                   isSelected
-                    ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm"
+                    ? "border-primary bg-primary/5 ring-2 ring-primary shadow-xs"
                     : isUnhealthy
                       ? "border-amber-500/50 bg-amber-500/5 hover:border-amber-500"
                       : "border-border bg-card hover:border-border/80 hover:bg-accent/30"
@@ -500,7 +515,7 @@ export function KubernetesLab({
                 <div className="mt-1 flex w-full items-center justify-between text-[10px] text-muted-foreground font-mono">
                   <span>{pod.ip}</span>
                   {pod.restarts > 0 ? (
-                    <span className="text-amber-500">{pod.restarts} restarts</span>
+                    <span className="text-amber-500 font-semibold">{pod.restarts} restarts</span>
                   ) : (
                     <span>0 restarts</span>
                   )}
@@ -513,17 +528,17 @@ export function KubernetesLab({
 
       {/* Selected Pod Deep-Dive Inspector */}
       {selectedPod ? (
-        <div className="rounded-lg border border-border bg-background/80 p-3.5 space-y-2.5 text-xs">
+        <div className="rounded-lg border border-border/80 bg-background/80 p-3.5 space-y-2.5 text-xs">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2">
             <div className="flex items-center gap-2">
               <span className="font-mono font-semibold text-foreground text-xs">
                 {selectedPod.name}
               </span>
               <span
-                className={`rounded px-1.5 py-0.2 text-[10px] font-mono ${
+                className={`rounded-md px-2 py-0.5 text-[10px] font-mono border ${
                   selectedPod.status === "Ready"
-                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold"
+                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium"
+                    : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold"
                 }`}
               >
                 {selectedPod.status}
@@ -533,7 +548,7 @@ export function KubernetesLab({
               <button
                 type="button"
                 onClick={() => dispatch({ type: "RESTART_POD", podId: selectedPod.id })}
-                className="rounded border border-border px-2 py-0.5 text-[11px] hover:bg-accent"
+                className="rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring transition-colors"
               >
                 Restart Pod
               </button>
@@ -557,8 +572,8 @@ export function KubernetesLab({
 
           {/* Pod Event Stream */}
           <div className="mt-2 space-y-1">
-            <span className="font-semibold text-[11px] text-foreground">Recent Pod Events:</span>
-            <div className="max-h-24 overflow-y-auto rounded bg-zinc-950 p-2 font-mono text-[10px] text-zinc-300 dark:bg-black">
+            <span className="font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Recent Pod Events</span>
+            <div className="max-h-24 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950 p-2 font-mono text-[10px] text-zinc-300 dark:bg-black">
               {selectedPod.events.map((evt, idx) => (
                 <div
                   key={idx}
@@ -580,8 +595,8 @@ export function KubernetesLab({
 
       {/* Cluster Event Logs */}
       <div className="space-y-1">
-        <span className="text-[11px] font-semibold text-foreground">Cluster Activity Stream:</span>
-        <div className="max-h-24 overflow-y-auto rounded bg-zinc-950 p-2 font-mono text-[10px] text-zinc-400 dark:bg-black">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Cluster Activity Stream</span>
+        <div className="max-h-24 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950 p-2 font-mono text-[10px] text-zinc-400 dark:bg-black">
           {state.logs.map((log, i) => (
             <div
               key={i}

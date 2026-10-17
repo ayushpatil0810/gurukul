@@ -150,14 +150,14 @@ export function CicdLab({
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card/60 p-4 shadow-sm backdrop-blur">
+    <div className="space-y-4 rounded-xl border border-border/80 bg-card/60 p-4 sm:p-5 shadow-xs backdrop-blur-xs">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-3">
         <div>
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-foreground text-sm tracking-tight">
               Visual CI/CD Automation Pipeline
             </h3>
-            <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-mono font-medium text-primary">
+            <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-mono font-semibold text-primary">
               Simulated Pipeline
             </span>
           </div>
@@ -168,27 +168,40 @@ export function CicdLab({
         <button
           type="button"
           onClick={handleReset}
-          className="rounded border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent"
+          className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring transition-colors"
         >
           Reset Pipeline
         </button>
       </div>
 
+      {/* Instructional simulation banner */}
+      <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+        <span>Educational simulation: Demonstrates automated gate enforcement and failure blast-radius containment.</span>
+      </div>
+
       {/* Action Controls */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 pt-1">
         <button
           type="button"
           onClick={() => runPipeline(false)}
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring transition-colors"
         >
-          ▶ Run Pipeline (Happy Path)
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Run Pipeline (Happy Path)
         </button>
         <button
           type="button"
           onClick={() => runPipeline(true)}
-          className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+          className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3.5 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring transition-colors"
         >
-          ⚠ Simulate Automated Test Failure Gate
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          Simulate Automated Test Failure Gate
         </button>
       </div>
 
@@ -206,14 +219,14 @@ export function CicdLab({
       ) : null}
 
       {/* Visual Pipeline Stages */}
-      <div className="grid gap-2 sm:grid-cols-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {stages.map((stage) => {
           const isSelected = selectedStage?.id === stage.id;
           const statusStyle =
             stage.status === "passed"
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
               : stage.status === "failed"
-                ? "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300 animate-pulse"
+                ? "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300 animate-pulse"
                 : stage.status === "blocked"
                   ? "border-border/50 bg-muted/30 text-muted-foreground opacity-60"
                   : "border-border bg-card text-foreground";
@@ -224,7 +237,7 @@ export function CicdLab({
               type="button"
               onClick={() => setSelectedStageId(stage.id)}
               className={`flex flex-col items-start rounded-lg border p-2.5 text-left transition-all ${statusStyle} ${
-                isSelected ? "ring-2 ring-primary" : "hover:border-foreground/40"
+                isSelected ? "ring-2 ring-primary" : "hover:border-foreground/30"
               }`}
               aria-label={`Inspect ${stage.name}`}
             >
@@ -240,7 +253,7 @@ export function CicdLab({
 
       {/* Selected Stage Detail Inspector */}
       {selectedStage ? (
-        <div className="rounded-lg border border-border bg-zinc-950 p-3 font-mono text-xs text-zinc-300 dark:bg-black">
+        <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 font-mono text-xs text-zinc-300 dark:bg-black">
           <div className="flex items-center justify-between border-b border-zinc-800 pb-2 text-[11px] text-zinc-400">
             <span>Stage Inspector: {selectedStage.name}</span>
             <span className="capitalize text-zinc-200">Status: {selectedStage.status}</span>

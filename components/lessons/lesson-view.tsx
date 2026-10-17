@@ -139,46 +139,91 @@ export function LessonView({
 
   return (
     <div
-      className="grid min-w-0 gap-8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:grid-cols-[15rem_minmax(0,1fr)]"
+      className="grid min-w-0 gap-8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:grid-cols-[16rem_minmax(0,1fr)]"
       tabIndex={0}
       onKeyDown={onKeyDown}
       aria-label="Lesson player. Left and right arrow keys move between scenes."
     >
-      <nav aria-label="Lesson outline" className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
-        {scenes.map((item, itemIndex) => (
-          <button
-            key={item.id}
-            type="button"
-            aria-current={itemIndex === index ? "true" : undefined}
-            aria-label={`Scene ${itemIndex + 1}: ${item.title}`}
-            className={`shrink-0 rounded-md px-3 py-2 text-left text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
-              itemIndex === index ? "bg-secondary font-medium" : "hover:bg-secondary"
-            }`}
-            onClick={() => show(itemIndex)}
-          >
-            <span>{itemIndex + 1}</span> {item.title}
-          </button>
-        ))}
-      </nav>
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <p className="text-sm">
-            Scene {index + 1} of {scenes.length}
-            <span className="mx-2 text-muted-foreground">·</span>
-            {roleLabel[scene.role] ?? "Lesson scene"}
-          </p>
-          <p className="text-sm">
-            Viewed {viewed} of {scenes.length}. This is not a mastery score.
-          </p>
+      {/* Sidebar Outline Navigation */}
+      <nav aria-label="Lesson outline" className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:border-r lg:border-border/60 lg:pr-6 lg:pb-0">
+        <div className="hidden lg:flex items-center justify-between pb-3 mb-1 border-b border-border/60">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Lesson Outline
+          </span>
+          <span className="rounded-md border border-border/60 bg-muted/60 px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
+            {scenes.length} scenes
+          </span>
         </div>
-        <progress
-          className="mt-3 h-1.5 w-full appearance-none overflow-hidden rounded-full bg-secondary [&::-moz-progress-bar]:bg-foreground [&::-webkit-progress-bar]:bg-secondary [&::-webkit-progress-value]:bg-foreground"
-          max={scenes.length}
-          value={viewed}
-          aria-label="Scenes viewed in this sitting. This is not a mastery score."
-        />
-        <article className="mt-6 max-w-[75ch]">
-          <h2 className="text-2xl font-semibold tracking-tight text-balance">{scene.title}</h2>
+
+        {scenes.map((item, itemIndex) => {
+          const isActive = itemIndex === index;
+          const isVisited = visited.includes(itemIndex);
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              aria-current={isActive ? "true" : undefined}
+              aria-label={`Scene ${itemIndex + 1}: ${item.title}`}
+              className={`group shrink-0 rounded-lg p-2.5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
+                isActive
+                  ? "bg-primary/10 border-l-2 border-primary shadow-2xs font-medium"
+                  : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => show(itemIndex)}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-semibold transition-colors ${
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : isVisited
+                        ? "bg-muted text-foreground border border-border/80"
+                        : "bg-muted/40 text-muted-foreground border border-border/40"
+                  }`}
+                >
+                  {itemIndex + 1}
+                </span>
+                <span className={`text-xs truncate ${isActive ? "text-foreground font-semibold" : ""}`}>
+                  {item.title}
+                </span>
+              </div>
+              <p className="mt-1 pl-7 text-[10px] text-muted-foreground truncate uppercase tracking-wider">
+                {roleLabel[item.role] ?? "Scene"}
+              </p>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Main Instructional Canvas */}
+      <div className="min-w-0">
+        {/* Top Progress & Header Bar */}
+        <div className="rounded-xl border border-border/70 bg-card/50 p-4 shadow-2xs mb-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="rounded-md border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                Scene {index + 1} of {scenes.length}
+              </span>
+              <span className="text-xs text-muted-foreground font-medium">
+                · {roleLabel[scene.role] ?? "Lesson scene"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Viewed {viewed} of {scenes.length}. This is not a mastery score.
+            </p>
+          </div>
+          <progress
+            className="mt-3 h-1.5 w-full appearance-none overflow-hidden rounded-full bg-muted [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-primary transition-all"
+            max={scenes.length}
+            value={viewed}
+            aria-label="Scenes viewed in this sitting. This is not a mastery score."
+          />
+        </div>
+
+        {/* Scene Instructional Content */}
+        <article className="max-w-[80ch]">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground text-balance">{scene.title}</h2>
           <SceneBody
             lessonId={lessonId}
             scene={scene}
@@ -214,23 +259,36 @@ export function LessonView({
             }}
           />
         </article>
-        <div className="mt-8 flex gap-3">
-          <button
-            type="button"
-            className="rounded-md border border-border px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
-            disabled={index === 0}
-            onClick={() => show(index - 1)}
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
-            disabled={index === scenes.length - 1}
-            onClick={() => show(index + 1)}
-          >
-            Next
-          </button>
+
+        {/* Bottom Scene Controls */}
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
+          <div className="flex gap-2.5">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3.5 py-2 text-xs font-medium text-foreground shadow-2xs hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 transition-colors"
+              disabled={index === 0}
+              onClick={() => show(index - 1)}
+            >
+              <span aria-hidden="true">&larr;</span> Previous
+              <span className="hidden sm:inline font-mono text-[10px] text-muted-foreground ml-1">
+                [←]
+              </span>
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 transition-colors"
+              disabled={index === scenes.length - 1}
+              onClick={() => show(index + 1)}
+            >
+              Next <span aria-hidden="true">&rarr;</span>
+              <span className="hidden sm:inline font-mono text-[10px] text-primary-foreground/70 ml-1">
+                [→]
+              </span>
+            </button>
+          </div>
+          <span className="text-[11px] text-muted-foreground hidden sm:inline">
+            Tip: Press arrow keys to navigate scenes
+          </span>
         </div>
       </div>
 

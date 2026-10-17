@@ -106,14 +106,14 @@ export function DockerLab({
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card/60 p-4 shadow-sm backdrop-blur">
+    <div className="space-y-4 rounded-xl border border-border/80 bg-card/60 p-4 sm:p-5 shadow-xs backdrop-blur-xs">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-3">
         <div>
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-foreground text-sm tracking-tight">
               Interactive Docker & Container Lab
             </h3>
-            <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-mono font-medium text-primary">
+            <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-mono font-semibold text-primary">
               Simulated Runtime
             </span>
           </div>
@@ -124,28 +124,34 @@ export function DockerLab({
         <button
           type="button"
           onClick={handleReset}
-          className="rounded border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent"
+          className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring transition-colors"
         >
           Reset Lab
         </button>
+      </div>
+
+      {/* Instructional simulation banner */}
+      <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+        <span>Educational sandbox: Commands simulate Linux container runtime behavior deterministically.</span>
       </div>
 
       {/* Main Lab Layout: File Browser + Viewer */}
       <div className="grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
         {/* File Tree */}
         <div className="rounded-lg border border-border/60 bg-muted/20 p-2 text-xs">
-          <p className="px-2 py-1 font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+          <p className="px-2 py-1 font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">
             Files
           </p>
-          <div className="mt-1 space-y-1">
+          <div className="mt-1 flex sm:flex-col gap-1 overflow-x-auto sm:overflow-visible">
             {(["Dockerfile", "package.json", "src/server.js", ".dockerignore"] as SelectedFile[]).map((file) => (
               <button
                 key={file}
                 type="button"
                 onClick={() => setSelectedFile(file)}
-                className={`w-full rounded px-2 py-1 text-left font-mono text-[11px] truncate transition-colors ${
+                className={`shrink-0 sm:shrink sm:w-full rounded-md px-2.5 py-1 text-left font-mono text-[11px] truncate transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
                   selectedFile === file
-                    ? "bg-primary text-primary-foreground font-semibold"
+                    ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
@@ -156,7 +162,7 @@ export function DockerLab({
         </div>
 
         {/* Code Content */}
-        <div className="rounded-lg border border-border bg-zinc-950 p-3 font-mono text-xs text-zinc-200 dark:bg-black">
+        <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 font-mono text-xs text-zinc-200 dark:bg-black">
           <div className="flex items-center justify-between border-b border-zinc-800 pb-2 text-[11px] text-zinc-400">
             <span>{selectedFile}</span>
             {selectedFile === "Dockerfile" ? (
@@ -175,7 +181,7 @@ export function DockerLab({
           type="button"
           disabled={buildStatus !== "unbuilt"}
           onClick={handleBuild}
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          className="rounded-md bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 transition-colors"
         >
           {buildStatus === "building" ? "Building Image…" : "1. Build Container Image"}
         </button>
@@ -184,16 +190,16 @@ export function DockerLab({
           type="button"
           disabled={buildStatus !== "built" || containerRunning}
           onClick={handleRun}
-          className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-40"
+          className="rounded-md border border-border bg-background px-3.5 py-1.5 text-xs font-medium text-foreground shadow-2xs hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 transition-colors"
         >
-          {containerRunning ? "Container Active" : "2. Run Container (:8080)"}
+          {containerRunning ? "Container Active (:8080)" : "2. Run Container (:8080)"}
         </button>
 
         <button
           type="button"
           disabled={!containerRunning}
           onClick={handleHealthCheck}
-          className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-40"
+          className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 transition-colors"
         >
           3. Test Health Endpoint (/healthz)
         </button>
@@ -201,16 +207,16 @@ export function DockerLab({
 
       {/* Health Check Response Modal/Card if tested */}
       {healthResponse ? (
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 font-mono text-xs text-emerald-800 dark:text-emerald-300">
-          <div className="font-semibold pb-1">Verified HTTP Probe Response:</div>
-          <pre className="whitespace-pre overflow-x-auto text-[11px]">{healthResponse}</pre>
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3.5 font-mono text-xs text-emerald-900 dark:text-emerald-300">
+          <div className="font-semibold pb-1 text-[11px] uppercase tracking-wider">Verified HTTP Probe Response:</div>
+          <pre className="whitespace-pre overflow-x-auto text-[11px] leading-relaxed">{healthResponse}</pre>
         </div>
       ) : null}
 
       {/* Terminal Activity Log */}
-      <div className="space-y-1">
-        <span className="text-[11px] font-semibold text-foreground">Docker Engine Terminal Logs:</span>
-        <div className="max-h-24 overflow-y-auto rounded bg-zinc-950 p-2 font-mono text-[10px] text-zinc-400 dark:bg-black">
+      <div className="space-y-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Docker Engine Terminal Logs</span>
+        <div className="max-h-24 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950 p-2.5 font-mono text-[10px] text-zinc-400 dark:bg-black">
           {logs.map((log, i) => (
             <div
               key={i}
@@ -218,7 +224,7 @@ export function DockerLab({
                 log.startsWith("$")
                   ? "text-primary font-semibold"
                   : log.includes("Successfully") || log.includes("Healthy")
-                    ? "text-emerald-400"
+                    ? "text-emerald-400 font-medium"
                     : "text-zinc-400"
               }`}
             >

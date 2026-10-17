@@ -335,95 +335,135 @@ export function PracticeWorkspace({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {session?.recording ? (
-        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
-          This session is being recorded.
-        </p>
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-700 dark:text-amber-300 font-medium">
+          <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+          <span>Active assessment session: Keystroke timeline and run signals are recorded for integrity review.</span>
+        </div>
       ) : null}
-      <section className="rounded-lg border border-border p-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">{next.moduleName}</p>
-        <p className="mt-1 text-base font-medium">{next.decision.reason}</p>
+
+      <section className="rounded-xl border border-border/80 bg-card/60 p-5 shadow-xs backdrop-blur-xs">
+        <div className="flex items-center gap-2">
+          <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary uppercase tracking-wider">
+            Target Module
+          </span>
+          <p className="text-xs font-mono text-muted-foreground">{next.moduleName}</p>
+        </div>
+        <p className="mt-2 text-base font-semibold text-foreground leading-snug">{next.decision.reason}</p>
         {next.decision.alternatives.length > 0 ? (
-          <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-            {next.decision.alternatives.map((item) => (
-              <li key={item.conceptId}>
-                {item.name} · {item.mastery.toFixed(2)} · {item.note}
-              </li>
-            ))}
-          </ul>
+          <div className="mt-3 pt-3 border-t border-border/60">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+              Alternative concepts evaluated
+            </p>
+            <ul className="space-y-1 text-xs text-muted-foreground">
+              {next.decision.alternatives.map((item) => (
+                <li key={item.conceptId} className="flex items-center gap-2">
+                  <span className="font-medium text-foreground">{item.name}</span>
+                  <span>·</span>
+                  <span className="font-mono">{item.mastery.toFixed(2)}</span>
+                  <span>·</span>
+                  <span>{item.note}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
       </section>
 
       {mode === "graded" && !accepted ? (
-        <section className="rounded-lg border border-border p-4">
-          <h2 className="font-medium">Consent</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{consentText}</p>
-          <Button className="mt-3" onClick={() => void accept()}>
+        <section className="rounded-xl border border-border/80 bg-card/60 p-5 shadow-xs">
+          <h2 className="font-semibold text-foreground text-sm">Graded Assessment Consent</h2>
+          <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{consentText}</p>
+          <Button className="mt-3 text-xs" onClick={() => void accept()}>
             I agree, record this graded session
           </Button>
         </section>
       ) : null}
 
       {question ? (
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">Difficulty {question.difficulty}</h2>
+        <section className="space-y-4 rounded-xl border border-border/80 bg-card/60 p-5 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
             <div className="flex items-center gap-2">
-              <label className="text-sm" htmlFor="mode">
-                Mode
+              <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-mono font-semibold text-foreground">
+                Difficulty {question.difficulty}
+              </span>
+              <h2 className="text-base font-semibold text-foreground">Coding Challenge</h2>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5" htmlFor="mode">
+                Mode:
+                <select
+                  id="mode"
+                  className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground shadow-2xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                  value={mode}
+                  onChange={(event) => {
+                    const nextMode = event.target.value === "graded" ? "graded" : "practice";
+                    recorder.current?.record("session_end");
+                    recorder.current?.dispose();
+                    recorder.current = null;
+                    sessionRef.current = null;
+                    modeRef.current = nextMode;
+                    resetCapture(documentText.current);
+                    setMode(nextMode);
+                    setSession(null);
+                    setSubmitResult(null);
+                  }}
+                >
+                  <option value="practice">Practice (Ungraded)</option>
+                  <option value="graded">Graded Assessment</option>
+                </select>
               </label>
-              <select
-                id="mode"
-                className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-                value={mode}
-                onChange={(event) => {
-                  const nextMode = event.target.value === "graded" ? "graded" : "practice";
-                  recorder.current?.record("session_end");
-                  recorder.current?.dispose();
-                  recorder.current = null;
-                  sessionRef.current = null;
-                  modeRef.current = nextMode;
-                  resetCapture(documentText.current);
-                  setMode(nextMode);
-                  setSession(null);
-                  setSubmitResult(null);
-                }}
-              >
-                <option value="practice">Practice</option>
-                <option value="graded">Graded</option>
-              </select>
-              <label className="text-sm" htmlFor="language">
-                Language
+
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5" htmlFor="language">
+                Language:
+                <select
+                  id="language"
+                  className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground shadow-2xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                  value={language}
+                  onChange={(event) => chooseLanguage(event.target.value)}
+                >
+                  {question.languages.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
               </label>
-              <select
-                id="language"
-                className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-                value={language}
-                onChange={(event) => chooseLanguage(event.target.value)}
-              >
-                {question.languages.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
-          <p className="text-sm">{question.statement}</p>
-          <ul className="text-sm text-muted-foreground">
-            {question.tests
-              .filter((test) => test.visibility === "visible")
-              .map((test) =>
-                test.visibility === "visible" ? (
-                  <li key={test.id}>
-                    Sample in <code>{test.input.trim() || "(empty)"}</code> → <code>{test.expectedOutput.trim()}</code>
-                  </li>
-                ) : null,
-              )}
-            <li>{question.tests.filter((test) => test.visibility === "hidden").length} hidden tests stay on the server.</li>
-          </ul>
-          <div className="overflow-hidden rounded-lg border border-border">
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground leading-relaxed">{question.statement}</p>
+            <ul className="space-y-1 text-xs text-muted-foreground">
+              {question.tests
+                .filter((test) => test.visibility === "visible")
+                .map((test) =>
+                  test.visibility === "visible" ? (
+                    <li key={test.id} className="flex items-center gap-1.5">
+                      <span className="font-semibold text-foreground">Sample Test:</span>
+                      <span>in</span>
+                      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground border border-border/60">
+                        {test.input.trim() || "(empty)"}
+                      </code>
+                      <span>&rarr; expected</span>
+                      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground border border-border/60">
+                        {test.expectedOutput.trim()}
+                      </code>
+                    </li>
+                  ) : null,
+                )}
+              <li className="text-[11px] text-muted-foreground italic">
+                {question.tests.filter((test) => test.visibility === "hidden").length} hidden tests stay on the server.
+              </li>
+            </ul>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-xs">
+            <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/80 px-3 py-1.5 font-mono text-[11px] text-zinc-400">
+              <span>solution.{language === "cpp" ? "cpp" : language === "javascript" ? "js" : language}</span>
+              <span className="text-[10px] text-zinc-400">Monaco Sandbox Editor</span>
+            </div>
             <Editor
               height="360px"
               language={language === "cpp" ? "cpp" : language}
@@ -433,12 +473,13 @@ export function PracticeWorkspace({
               onMount={onMount}
             />
           </div>
-          <div className="flex gap-2">
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             <Button onClick={() => void run()} disabled={busy || (mode === "graded" && !accepted)}>
-              Run
+              Run Samples
             </Button>
             <Button variant="secondary" onClick={() => void submit()} disabled={busy || (mode === "graded" && !accepted)}>
-              Submit
+              Submit Assessment
             </Button>
             <Button variant="outline" onClick={() => void load()}>
               Next question

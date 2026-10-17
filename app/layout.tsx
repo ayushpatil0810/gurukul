@@ -18,9 +18,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Adaptive Learning Portal",
+  title: {
+    default: "LearnLoop — Adaptive Learning & Assessment",
+    template: "%s · LearnLoop",
+  },
   description:
-    "Concept maps, question banks, and role-based access for TechSummitTrainers.",
+    "Engineering-grade adaptive learning and assessment portal with concept prerequisite graphs, visual classroom lessons, DevOps simulations, and Bayesian Knowledge Tracing.",
 };
 
 export default function RootLayout({
@@ -45,10 +48,16 @@ export default function RootLayout({
           <Navbar />
         </Suspense>
         <main className="flex-1">{children}</main>
-        <footer className="border-t border-border/40 py-6 text-center text-xs text-muted-foreground">
-          <p>
-            TechSummitTrainers &bull; Adaptive Learning and Assessment Portal
-          </p>
+        <footer className="border-t border-border/40 bg-card/40 py-6 text-center text-xs text-muted-foreground backdrop-blur-sm">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
+            <p className="flex items-center gap-1.5 font-medium text-foreground/80">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+              LearnLoop &bull; TechSummitTrainers
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Adaptive Learning &bull; Bayesian Knowledge Tracing &bull; Interactive DevOps Classroom
+            </p>
+          </div>
         </footer>
       </body>
     </html>

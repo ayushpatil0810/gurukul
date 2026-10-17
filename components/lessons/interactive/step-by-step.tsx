@@ -55,9 +55,23 @@ export function StepByStepViewer({
             type="button"
             onClick={() => setIsPlaying(!isPlaying)}
             aria-label={isPlaying ? "Pause automated playback" : "Play automated step progression"}
-            className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium hover:bg-accent"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring transition-colors"
           >
-            {isPlaying ? "⏸ Pause" : "▶ Play"}
+            {isPlaying ? (
+              <>
+                <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                </svg>
+                Pause
+              </>
+            ) : (
+              <>
+                <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                Play
+              </>
+            )}
           </button>
           <button
             type="button"

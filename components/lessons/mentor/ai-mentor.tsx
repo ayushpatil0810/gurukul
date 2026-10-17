@@ -145,10 +145,14 @@ export function AiMentor({
         type="button"
         onClick={handleToggleOpen}
         aria-label="Toggle AI Learning Mentor panel"
-        className="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-3.5 py-2 sm:px-4 sm:py-2.5 text-xs font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 hover:shadow-xl transition-all"
+        className="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-md hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring transition-all"
       >
-        <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-        ✨ AI Mentor {isOpen ? "✕" : ""}
+        <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        <span>AI Mentor</span>
+        {isOpen ? <span className="ml-0.5 font-mono text-xs">✕</span> : null}
       </button>
 
       {/* Slide-out Mentor Panel */}
@@ -156,13 +160,15 @@ export function AiMentor({
         <aside
           role="complementary"
           aria-label="AI Learning Mentor chat"
-          className="fixed bottom-16 right-3 sm:bottom-20 sm:right-5 z-40 flex h-[500px] max-h-[calc(100vh-5rem)] w-[calc(100vw-1.5rem)] sm:w-96 max-w-sm flex-col rounded-2xl border border-border bg-card/95 p-3.5 sm:p-4 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-3 duration-200"
+          className="fixed bottom-16 right-3 sm:bottom-20 sm:right-5 z-40 flex h-[520px] max-h-[calc(100vh-5rem)] w-[calc(100vw-1.5rem)] sm:w-96 max-w-sm flex-col rounded-2xl border border-border/80 bg-card/95 p-4 shadow-xl backdrop-blur-md animate-in slide-in-from-bottom-2 duration-150"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border/60 pb-3">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                ✦
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
               </span>
               <div>
                 <h3 className="font-semibold text-foreground text-xs leading-none">
@@ -176,7 +182,7 @@ export function AiMentor({
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground text-xs"
+              className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground text-xs transition-colors"
               aria-label="Close mentor panel"
             >
               ✕
@@ -185,7 +191,7 @@ export function AiMentor({
 
           {/* Context Tag Banner */}
           {selectedEntity ? (
-            <div className="my-2 rounded border border-primary/20 bg-primary/5 px-2 py-1 text-[10px] text-foreground font-mono">
+            <div className="my-2 rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1 text-[10px] text-foreground font-mono">
               <span className="text-muted-foreground">Inspecting: </span>
               {selectedEntity}
             </div>
@@ -201,24 +207,25 @@ export function AiMentor({
                 }`}
               >
                 <div
-                  className={`max-w-[88%] rounded-xl px-3 py-2 leading-relaxed whitespace-pre-wrap ${
+                  className={`max-w-[88%] rounded-xl px-3.5 py-2.5 leading-relaxed whitespace-pre-wrap shadow-2xs ${
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground font-medium"
-                      : "bg-muted/70 text-foreground border border-border/50"
+                      : "bg-muted/70 text-foreground border border-border/60"
                   }`}
                 >
                   {msg.content}
                 </div>
                 {msg.mode ? (
-                  <span className="mt-0.5 text-[9px] text-muted-foreground px-1">
-                    {msg.mode === "simulated" ? "⚡ Deterministic mentor guidance" : "🤖 Model response"}
+                  <span className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground px-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary/60" />
+                    {msg.mode === "simulated" ? "Deterministic mentor guidance" : "Generative mentor response"}
                   </span>
                 ) : null}
               </div>
             ))}
             {isPending ? (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground py-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ping" />
+              <div className="flex items-center gap-2 text-xs text-muted-foreground py-1 px-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                 <span>Mentor is reasoning…</span>
               </div>
             ) : null}
@@ -230,35 +237,47 @@ export function AiMentor({
               type="button"
               disabled={isPending}
               onClick={() => sendAction("hint")}
-              className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium hover:bg-accent disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
             >
-              💡 Give hint
+              <svg className="h-3 w-3 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              Give hint
             </button>
             <button
               type="button"
               disabled={isPending}
               onClick={() => sendAction("simplify")}
-              className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium hover:bg-accent disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
             >
-              🐣 Explain simply
+              <svg className="h-3 w-3 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              Explain simply
             </button>
             {visibleLogs ? (
               <button
                 type="button"
                 disabled={isPending}
                 onClick={() => sendAction("explain_logs")}
-                className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium hover:bg-accent disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
               >
-                🔍 Analyze logs
+                <svg className="h-3 w-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Analyze logs
               </button>
             ) : null}
             <button
               type="button"
               disabled={isPending}
               onClick={() => sendAction("quiz_me")}
-              className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium hover:bg-accent disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
             >
-              🎯 Quiz me
+              <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Quiz me
             </button>
           </div>
 
@@ -270,7 +289,7 @@ export function AiMentor({
                 sendAction("freeform", inputValue.trim());
               }
             }}
-            className="flex items-center gap-1.5 pt-1.5"
+            className="flex items-center gap-2 pt-1.5"
           >
             <input
               type="text"
@@ -278,12 +297,12 @@ export function AiMentor({
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask a question about this scene…"
               disabled={isPending}
-              className="flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+              className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground shadow-2xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
             />
             <button
               type="submit"
               disabled={!inputValue.trim() || isPending}
-              className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 transition-colors"
             >
               Send
             </button>

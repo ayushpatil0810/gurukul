@@ -366,7 +366,29 @@ Closed-loop adaptive learning architecture:
   - `bun run build`: **31 routes compiled successfully on Next.js 16.4.2**.
   - `scripts/probe-mastery.mjs`: Pre/post-test DB states strictly identical (0 unwanted mutations).
   - Live API smoke test: `GET /api/learning/recommendation` verified live on port 3000 (401 unauthenticated, 200 authenticated for Ada with complete adaptive payload).
-- Working tree preserved uncommitted (no git commits or pushes performed, no schema migrations needed).
+## Phase 5.4 — Complete Product UI & Experience Redesign
+
+Implemented and documented in `docs/PHASE5_4_UI_EXPERIENCE_REDESIGN.md`.
+
+Purpose-built engineering learning platform experience redesign:
+- Visual Foundations & Design System: Refined global design tokens (`app/globals.css`) using modern, calm technical OKLCH color spaces for light and dark modes with tailored slate neutrals and indigo primary accents. Replaced exaggerated `rounded-4xl` pills with crisp `rounded-md` components, standardizing accessible `:focus-visible` rings, reduced-motion preferences, and refined border radii.
+- Brand Identity & Navigation: Replaced decorative emojis (`⚡`) with a geometric SVG loop logo mark (`components/navbar.tsx`). Resolved a critical responsive bug where mobile viewports (<768px) had zero navigation links by engineering an accessible mobile drawer toggle with smooth open/close states and render-time pathname synchronization.
+- Student Learning Experience: Redesigned the student dashboard (`components/dashboard/views.tsx`) to prioritize immediate orientation ("Where am I?", "What should I learn next?", "Why is this the right next activity?"). Elevated the Adaptive Learning Path recommendation card, clearly distinguishing stored mastery from calibration estimates, presenting clean prerequisite readiness checklists, and structuring validated evidence chips while strictly preserving all data contracts.
+- Interactive Classroom Shell: Upgraded the multi-scene lesson player (`components/lessons/lesson-view.tsx`) with a structured sidebar outline displaying step numbers and role labels, a smooth progress indicator, and sticky navigation controls with keyboard shortcut hints (`[←]` / `[→]`).
+- Hands-on Simulation Labs: Polished Docker, CI/CD, and Kubernetes simulation labs (`docker-lab.tsx`, `cicd-lab.tsx`, `kubernetes-lab.tsx`) with explicit "Educational Sandbox / Simulated Environment" notices, responsive layouts (such as 2/3/6-column responsive CI/CD stages preventing mobile clipping), clean syntax-colored terminal logs, and SVG controls replacing informal emojis.
+- Contextual AI Mentor: Redesigned the AI Mentor panel (`ai-mentor.tsx`) into a focused technical assistant with SVG iconography, distinct message containers, deterministic vs model response indicators, and a responsive mobile drawer layout.
+- Knowledge Checks & Practice Workspace: Polished self-assessment knowledge checks (`interactive-quiz.tsx`) and coding assessment workspace (`workspace.tsx`) with accessible radio options, clear instant feedback, and Monaco editor containers.
+- Verification & Invariance:
+  - `bun run test`: **43 test files passed, 218 tests passed (100% pass rate)**.
+  - `tests/integration/adaptive-loop.test.ts`: 9 tests passing.
+  - `tests/integration/lesson-access.test.ts`: 1 test passing.
+  - `tests/integration/dashboard-access.test.ts`: 1 test passing.
+  - `bun run lint`: **0 errors, 0 warnings**.
+  - `bun run typecheck`: **0 errors (`tsc --noEmit`)**.
+  - `bun run build`: **31 routes compiled successfully on Next.js 16.4.2 (Turbopack)**.
+  - `scripts/probe-mastery.mjs`: Database mastery and event counts strictly verified identical pre- and post-redesign (0 unwanted mutations).
+  - Live HTTP smoke test: verified 7 live endpoints (`/`, `/login`, `/dashboard`, `/practice`, `/curriculum`, and trainer batch views) with 100% success.
+- Working tree preserved uncommitted (no git commits or pushes performed).
 
 ## Not started
 
