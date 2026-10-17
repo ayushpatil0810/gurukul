@@ -31,7 +31,7 @@ export function formatMastery(pKnow: number): string {
   return `${Math.round(pKnow * 100)}% (${pKnow.toFixed(2)})`;
 }
 
-export function masteryLabel(pKnow: number | null, threshold: number): string {
+function masteryLabel(pKnow: number | null, threshold: number): string {
   const band = masteryBand(pKnow, threshold);
   if (band === "not_recorded" || pKnow === null) return "Not recorded";
   if (band === "solid") return `Solid, ${formatMastery(pKnow)}`;

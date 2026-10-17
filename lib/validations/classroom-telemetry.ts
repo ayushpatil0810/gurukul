@@ -17,104 +17,104 @@ const FORBIDDEN_PAYLOAD_KEYS = new Set([
   "rawAnswerKey",
 ]);
 
-export const lessonStartPayloadSchema = z.object({
+const lessonStartPayloadSchema = z.object({
   sceneCount: z.number().int().nonnegative().optional(),
 });
 
-export const lessonCompletePayloadSchema = z.object({
+const lessonCompletePayloadSchema = z.object({
   durationMs: z.number().nonnegative().optional(),
   scenesViewed: z.number().int().nonnegative().optional(),
   totalScenes: z.number().int().nonnegative().optional(),
 });
 
-export const sceneViewPayloadSchema = z.object({
+const sceneViewPayloadSchema = z.object({
   sceneIndex: z.number().int().nonnegative(),
   role: z.string().max(64).optional(),
   title: z.string().max(256).optional(),
 });
 
-export const sceneNavPayloadSchema = z.object({
+const sceneNavPayloadSchema = z.object({
   fromIndex: z.number().int().nonnegative(),
   toIndex: z.number().int().nonnegative(),
   direction: z.enum(["next", "prev", "jump"]),
 });
 
-export const diagramNodeInspectPayloadSchema = z.object({
+const diagramNodeInspectPayloadSchema = z.object({
   nodeId: z.string().max(128),
   nodeLabel: z.string().max(256),
   category: z.string().max(128).optional(),
 });
 
-export const stepperStepPayloadSchema = z.object({
+const stepperStepPayloadSchema = z.object({
   stepIndex: z.number().int().nonnegative(),
   totalSteps: z.number().int().positive(),
   completed: z.boolean().optional(),
 });
 
-export const walkthroughStepPayloadSchema = z.object({
+const walkthroughStepPayloadSchema = z.object({
   stepIndex: z.number().int().nonnegative(),
   totalSteps: z.number().int().positive(),
 });
 
-export const dockerLabActionPayloadSchema = z.object({
+const dockerLabActionPayloadSchema = z.object({
   action: z.enum(["build", "run", "health_check", "reset"]),
   status: z.string().max(64).optional(),
   passed: z.boolean().optional(),
 });
 
-export const cicdLabRunPayloadSchema = z.object({
+const cicdLabRunPayloadSchema = z.object({
   stage: z.number().int().nonnegative(),
   stageName: z.string().max(128),
   passed: z.boolean(),
   gateOutcome: z.enum(["proceed", "blocked"]),
 });
 
-export const k8sLabActionPayloadSchema = z.object({
+const k8sLabActionPayloadSchema = z.object({
   action: z.enum(["scale", "simulate_failure", "recover", "inspect_pod", "reset"]),
   replicas: z.number().int().min(1).max(10).optional(),
   podName: z.string().max(128).optional(),
   outcome: z.enum(["degraded", "recovered", "scaled", "normal"]).optional(),
 });
 
-export const quizSubmitPayloadSchema = z.object({
+const quizSubmitPayloadSchema = z.object({
   questionId: z.string().max(128),
   selectedOption: z.string().max(512),
   isCorrect: z.boolean(),
 });
 
-export const quizRetryPayloadSchema = z.object({
+const quizRetryPayloadSchema = z.object({
   questionId: z.string().max(128),
   attemptCount: z.number().int().positive().optional(),
 });
 
-export const mentorOpenPayloadSchema = z.object({
+const mentorOpenPayloadSchema = z.object({
   sceneTitle: z.string().max(256).optional(),
 });
 
-export const mentorActionPayloadSchema = z.object({
+const mentorActionPayloadSchema = z.object({
   action: z.enum(["explain", "hint", "deep-dive"]),
   promptCategory: z.string().max(128).optional(),
 });
 
-export const mentorReplyPayloadSchema = z.object({
+const mentorReplyPayloadSchema = z.object({
   action: z.string().max(64),
   status: z.enum(["success", "fallback"]),
 });
 
-export const recommendationViewPayloadSchema = z.object({
+const recommendationViewPayloadSchema = z.object({
   conceptId: z.string().max(128),
   activityType: z.string().max(64),
   activityId: z.string().max(128).nullable().optional(),
 });
 
-export const recommendationClickPayloadSchema = z.object({
+const recommendationClickPayloadSchema = z.object({
   conceptId: z.string().max(128),
   activityType: z.string().max(64),
   activityId: z.string().max(128).nullable().optional(),
   destinationHref: z.string().max(512).nullable().optional(),
 });
 
-export const classroomEventItemSchema = z.object({
+const classroomEventItemSchema = z.object({
   seq: z.number().int().positive().max(1_000_000),
   t: z.number().finite().gte(-86_400_000).lte(31_536_000_000),
   type: z.enum(classroomEventTypes),

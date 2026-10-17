@@ -1,6 +1,6 @@
 import type { RunLimits, SubmissionLanguage } from "@/sandbox/types";
 
-export const LANGUAGE_IMAGES: Record<SubmissionLanguage, string> = {
+const LANGUAGE_IMAGES: Record<SubmissionLanguage, string> = {
   javascript: "node:22-bookworm-slim",
   cpp: "gcc:14-bookworm",
   java: "eclipse-temurin:21-jdk-jammy",
@@ -15,7 +15,7 @@ const SOURCE_FILE: Record<SubmissionLanguage, string> = {
 /** Ceiling for the compiler. Student code is limited separately with ulimit. */
 const CONTAINER_CPU_CEILING_SECONDS = 30;
 
-export function sourceFile(language: SubmissionLanguage): string {
+function sourceFile(language: SubmissionLanguage): string {
   return SOURCE_FILE[language];
 }
 

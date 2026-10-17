@@ -15,18 +15,18 @@ export const INTEGRITY_RULE_VERSION = "integrity-v1";
 export const LARGE_PASTE_CHARS = 150;
 export const LARGE_PASTE_RATIO = 0.4;
 export const BURST_CHARS_PER_SECOND = 12;
-export const BURST_BASELINE_DEVIATIONS = 3;
-export const BURST_SINGLE_INSERT_CHARS = 80;
-export const BURST_SUSTAINED_MS = 1000;
+const BURST_BASELINE_DEVIATIONS = 3;
+const BURST_SINGLE_INSERT_CHARS = 80;
+const BURST_SUSTAINED_MS = 1000;
 export const BASELINE_MIN_SAMPLES = 30;
-export const FIRST_PASS_MIN_LINES = 30;
-export const UNIFORM_MIN_TYPED_CHARS = 300;
+const FIRST_PASS_MIN_LINES = 30;
+const UNIFORM_MIN_TYPED_CHARS = 300;
 export const UNIFORM_CV_MAX = 0.15;
 export const UNIFORM_MAX_DELETION_RATIO = 0.02;
 export const UNIFORM_MAX_PAUSE_MS = 5000;
 
-export const POPULATION_CONFIDENCE = 0.45;
-export const BASELINE_CONFIDENCE = 0.8;
+const POPULATION_CONFIDENCE = 0.45;
+const BASELINE_CONFIDENCE = 0.8;
 
 export type IntegrityEvent = {
   seq: number;

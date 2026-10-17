@@ -18,7 +18,7 @@ const Editor = dynamic(() => import("@monaco-editor/react"), {
   loading: () => <div className="p-3 font-mono text-xs text-muted-foreground">Loading code editor…</div>,
 });
 
-export const roleLabel: Record<SceneRole, string> = {
+const roleLabel: Record<SceneRole, string> = {
   introduction: "Concept introduction",
   intro: "Concept introduction",
   explanation: "Explanation",

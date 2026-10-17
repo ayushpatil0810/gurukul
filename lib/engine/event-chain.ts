@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 /** Client sequence numbers stop at 1_000_000. Notes written by the server start here. */
 export const SERVER_SEQ_BASE = 1_000_001;
-export const EVENT_SCHEMA_VERSION = 2;
+const EVENT_SCHEMA_VERSION = 2;
 
 export type TimelineEvent = {
   seq: number;
@@ -29,7 +29,7 @@ export type ExistingTimelineEvent = IncomingTimelineEvent & {
 
 type GapRange = { from: number; to: number };
 
-export function stableJson(value: unknown): string {
+function stableJson(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
   if (Array.isArray(value)) return `[${value.map((item) => stableJson(item)).join(",")}]`;
   const record = value as Record<string, unknown>;

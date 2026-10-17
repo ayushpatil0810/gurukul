@@ -1410,7 +1410,7 @@ function Heatmap({ view }: { view: TrainerDashboard }) {
 // CLASSROOM TELEMETRY CARD
 // ==========================================
 
-export function ClassroomAnalyticsCard({
+function ClassroomAnalyticsCard({
   analytics,
 }: {
   analytics?: ClassroomAnalyticsSummary | null;

@@ -546,6 +546,6 @@ function hiddenCounts(value: unknown): { passed: number | null; total: number | 
   };
 }
 
-export function formatUtc(date: Date): string {
+function formatUtc(date: Date): string {
   return `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }

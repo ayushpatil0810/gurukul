@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { submissionLanguages } from "@/db/schema";
 
-export const conceptNameSchema = z.string().trim().min(1, "Name is required").max(120);
+const conceptNameSchema = z.string().trim().min(1, "Name is required").max(120);
 
 export const createConceptSchema = z.object({
   name: conceptNameSchema,
@@ -31,7 +31,7 @@ export const createModuleSchema = z.object({
   conceptIds: z.array(z.string().trim().min(1)).min(1),
 });
 
-export const questionTestSchema = z.object({
+const questionTestSchema = z.object({
   visibility: z.enum(["visible", "hidden"]),
   input: z.string().max(20000),
   expectedOutput: z.string().max(20000),

@@ -27,7 +27,7 @@ function SmallIcon({ className, ...props }: IconProps) {
   );
 }
 
-export function HomeIcon({ className, ...props }: IconProps) {
+function HomeIcon({ className, ...props }: IconProps) {
   return (
     <Icon className={className} {...props}>
       <path
@@ -140,7 +140,7 @@ export function CalendarDotsIcon({ className, ...props }: IconProps) {
   );
 }
 
-export function FileArrowUpIcon({ className, ...props }: IconProps) {
+function FileArrowUpIcon({ className, ...props }: IconProps) {
   return (
     <SmallIcon className={className} {...props}>
       <path

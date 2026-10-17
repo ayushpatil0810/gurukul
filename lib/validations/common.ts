@@ -23,12 +23,12 @@ export const nameSchema = z
   .min(2, "Name must be at least 2 characters long")
   .max(100, "Name must not exceed 100 characters");
 
-export const idSchema = z
+const idSchema = z
   .string()
   .trim()
   .min(1, "ID is required");
 
-export const paginationSchema = z.object({
+const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 });

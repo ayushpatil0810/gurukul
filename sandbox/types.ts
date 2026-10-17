@@ -2,7 +2,7 @@ import type { SubmissionLanguage } from "@/db/schema/portal";
 
 export type { SubmissionLanguage };
 
-export const RUN_OUTCOMES = [
+const RUN_OUTCOMES = [
   "ok",
   "wrong_answer",
   "timeout",

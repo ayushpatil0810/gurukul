@@ -43,7 +43,7 @@ const defaultDeps: AssessmentDeps = {
   queue: new RunQueue({ concurrency: 2, perStudentPerMinute: 10 }),
 };
 
-export function consentVersion(consentText: string): string {
+function consentVersion(consentText: string): string {
   return createHash("sha256").update(consentText).digest("hex").slice(0, 16);
 }
 

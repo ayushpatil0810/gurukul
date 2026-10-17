@@ -43,7 +43,7 @@ export function decideStudentRead(input: {
   return "forbidden";
 }
 
-export function roleAllowed(role: Role, allowed: readonly Role[]): boolean {
+function roleAllowed(role: Role, allowed: readonly Role[]): boolean {
   return allowed.includes(role);
 }
 

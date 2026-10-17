@@ -12,7 +12,7 @@ export type SandboxJob = {
   limits?: Partial<RunLimits>;
 };
 
-export function createRedis(url: string) {
+function createRedis(url: string) {
   return new IORedis(url, { maxRetriesPerRequest: null });
 }
 
