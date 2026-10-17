@@ -15,6 +15,7 @@ export async function POST(request: Request, context: RouteContext) {
     const result = await runSession(actor, id, input);
     return NextResponse.json({ success: true, data: result });
   } catch (error) {
+    console.error("[POST /api/sessions/[id]/run Error]:", error);
     return apiErrorResponse(error);
   }
 }

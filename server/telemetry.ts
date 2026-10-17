@@ -20,8 +20,9 @@ wss.on("connection", (socket, request) => {
 console.log(`Telemetry listening on ws://localhost:${port} (${env.NODE_ENV})`);
 
 async function handle(socket: import("ws").WebSocket, request: import("node:http").IncomingMessage) {
-  const actor = await actorFromCookie(request.headers.cookie ?? "");
+  const actor = await actorFromRequest(request);
   if (!actor) {
+    console.warn(`[Telemetry] Connection rejected (4001): unauthorized. Cookies: ${request.headers.cookie ? "present" : "none"}`);
     socket.close(4001, "Sign in required");
     return;
   }
@@ -45,26 +46,41 @@ async function receive(socket: import("ws").WebSocket, actor: Actor, raw: string
   }
 }
 
-async function actorFromCookie(cookie: string): Promise<Actor | null> {
-  const session = await auth.api.getSession({ headers: new Headers({ cookie }) });
-  if (!session?.user) return null;
-  const [row] = await db
-    .select({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      instituteId: user.instituteId,
-    })
-    .from(user)
-    .where(eq(user.id, session.user.id))
-    .limit(1);
-  if (!row) return null;
-  return {
-    id: row.id,
-    name: row.name,
-    email: row.email,
-    role: parseRole(row.role),
-    instituteId: row.instituteId,
-  };
+async function actorFromRequest(request: import("node:http").IncomingMessage): Promise<Actor | null> {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(request.headers)) {
+    if (value) {
+      if (Array.isArray(value)) {
+        for (const v of value) headers.append(key, v);
+      } else {
+        headers.set(key, value);
+      }
+    }
+  }
+  try {
+    const session = await auth.api.getSession({ headers });
+    if (!session?.user) return null;
+    const [row] = await db
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        instituteId: user.instituteId,
+      })
+      .from(user)
+      .where(eq(user.id, session.user.id))
+      .limit(1);
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: parseRole(row.role),
+      instituteId: row.instituteId,
+    };
+  } catch (err) {
+    console.error("[Telemetry] Failed to resolve actor from headers:", err);
+    return null;
+  }
 }

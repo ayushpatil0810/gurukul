@@ -12,7 +12,22 @@ import {
   type SubmissionLanguage,
 } from "@/sandbox/types";
 
-const SECCOMP_PATH = path.join(process.cwd(), "sandbox", "seccomp.json").replaceAll("\\", "/");
+import fs from "node:fs";
+
+function resolveSeccompPath(): string {
+  const candidates = [
+    path.join(process.cwd(), "sandbox", "seccomp.json"),
+    path.resolve(__dirname, "seccomp.json"),
+    path.resolve(__dirname, "..", "sandbox", "seccomp.json"),
+    path.resolve(__dirname, "..", "..", "sandbox", "seccomp.json"),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      return path.resolve(c).replaceAll("\\", "/");
+    }
+  }
+  return path.resolve(process.cwd(), "sandbox", "seccomp.json").replaceAll("\\", "/");
+}
 
 type Collected = {
   exitCode: number | null;
@@ -43,17 +58,20 @@ export class DockerSandboxRunner implements SandboxRunner {
     ]);
 
     try {
+      const seccompPath = resolveSeccompPath();
       const created = await docker(
         containerCreateArgs({
           name,
           language,
           limits: resolved,
-          seccompPath: SECCOMP_PATH,
+          seccompPath,
           runtime,
         }),
       );
       if (created.code !== 0) {
-        throw new Error(created.stderr.trim() || "The sandbox could not be created.");
+        const errMsg = created.stderr.trim() || `The sandbox could not be created (exit code ${created.code}).`;
+        console.error(`[DockerSandboxRunner Error]: ${errMsg}`);
+        throw new Error(errMsg);
       }
 
       const ranAt = Date.now();
