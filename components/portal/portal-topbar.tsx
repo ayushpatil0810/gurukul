@@ -14,7 +14,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 
 const NAV_ITEMS: { href: string; name: string; icon: typeof LayoutDashboard }[] = [
   { href: "/dashboard", name: "Mastery Dashboard", icon: LayoutDashboard },
-  { href: "/curriculum", name: "Concept Map", icon: Network },
+  { href: "/curriculum", name: "Course Management", icon: BookOpen },
   { href: "/practice", name: "Practice Lab", icon: Code2 },
   { href: "/studio", name: "Lesson Studio", icon: BookOpen },
   { href: "/questions", name: "Question Bank", icon: HelpCircle },

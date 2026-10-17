@@ -140,7 +140,7 @@ export function CalendarDotsIcon({ className, ...props }: IconProps) {
   );
 }
 
-function FileArrowUpIcon({ className, ...props }: IconProps) {
+export function FileArrowUpIcon({ className, ...props }: IconProps) {
   return (
     <SmallIcon className={className} {...props}>
       <path

@@ -24,16 +24,7 @@ async function EditorScreen({ params }: { params: Promise<{ id: string }> }) {
   }
   if (denied) return <p className="text-sm">{denied}</p>;
   if (!lesson) return null;
-  return (
-    <div className="space-y-6">
-      <p className="text-sm">
-        <Link className="underline-offset-4 hover:underline" href="/studio">
-          Lesson studio
-        </Link>
-      </p>
-      <LessonEditor lesson={lesson} />
-    </div>
-  );
+  return <LessonEditor lesson={lesson} />;
 }
 
 export default function EditLessonPage({ params }: { params: Promise<{ id: string }> }) {

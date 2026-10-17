@@ -26,6 +26,41 @@ export const DEMO_EDGES = [
   { concept: "di", requires: "inheritance" },
 ] as const;
 
+export const DEVOPS_CONCEPTS = [
+  { key: "namespaces", name: "Linux Namespaces & Isolation", description: "Kernel-level PID, mount, and network namespace process boundaries." },
+  { key: "chroot", name: "POSIX Chroot Jails", description: "Root filesystem virtualization, jail escapes prevention, and unprivileged sandboxes." },
+  { key: "docker-build", name: "Docker Multi-Stage BuildKit", description: "Layer caching, lean image packaging, and container daemon runtime architecture." },
+  { key: "container-net", name: "Container Virtual Networking", description: "Bridge interfaces, veth virtual pairs, and inter-container DNS resolution." },
+  { key: "k8s-pods", name: "Kubernetes Pods & ReplicaSets", description: "Declarative pod specifications, sidecars, replica controllers, and health probes." },
+  { key: "k8s-rollouts", name: "Zero-Downtime Rolling Deployments", description: "Rolling update strategies, surge quotas, traffic draining, and automated rollbacks." },
+] as const;
+
+export const DEVOPS_EDGES = [
+  { concept: "chroot", requires: "namespaces" },
+  { concept: "docker-build", requires: "chroot" },
+  { concept: "container-net", requires: "docker-build" },
+  { concept: "k8s-pods", requires: "container-net" },
+  { concept: "k8s-rollouts", requires: "k8s-pods" },
+] as const;
+
+export const ASYNC_CONCEPTS = [
+  { key: "event-loop", name: "Event Loop & Execution Stack", description: "V8 single-threaded call stack, macrotasks, and microtask queues." },
+  { key: "promises", name: "Promises & Microtask Resolution", description: "Promise state machines, thenable chaining, async/await transforms, and error catch trees." },
+  { key: "event-emitters", name: "EventEmitters & Reactive Signals", description: "Event-driven publish/subscribe channels and lifecycle listeners." },
+  { key: "async-iterators", name: "Async Iterators & Generators", description: "Symbol.asyncIterator protocol, chunk pull semantics, and for-await loops." },
+  { key: "node-streams", name: "Node.js Stream Transform Pipelines", description: "Readable, Writable, and Transform stream pipelines with chunk buffering." },
+  { key: "stream-backpressure", name: "Backpressure Flow Control", description: "HighWaterMark limits, drain events, and memory-safe stream backpressure." },
+] as const;
+
+export const ASYNC_EDGES = [
+  { concept: "promises", requires: "event-loop" },
+  { concept: "event-emitters", requires: "event-loop" },
+  { concept: "async-iterators", requires: "promises" },
+  { concept: "async-iterators", requires: "event-emitters" },
+  { concept: "node-streams", requires: "async-iterators" },
+  { concept: "stream-backpressure", requires: "node-streams" },
+] as const;
+
 type SeedQuestion = {
   statement: string;
   difficulty: 1 | 2 | 3 | 4 | 5;

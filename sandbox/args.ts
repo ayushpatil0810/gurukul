@@ -15,7 +15,7 @@ const SOURCE_FILE: Record<SubmissionLanguage, string> = {
 /** Ceiling for the compiler. Student code is limited separately with ulimit. */
 const CONTAINER_CPU_CEILING_SECONDS = 30;
 
-function sourceFile(language: SubmissionLanguage): string {
+export function sourceFile(language: SubmissionLanguage): string {
   return SOURCE_FILE[language];
 }
 

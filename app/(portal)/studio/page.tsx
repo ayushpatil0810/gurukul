@@ -7,6 +7,8 @@ import { AppError } from "@/lib/errors";
 import { listLessons } from "@/lib/services/lessons";
 import { lessonModelConfigured } from "@/lib/engine/lesson-provider";
 
+import { StudioHub } from "@/components/studio/studio-hub";
+
 export const metadata: Metadata = { title: "Lesson studio" };
 
 async function StudioList() {
@@ -22,41 +24,12 @@ async function StudioList() {
     else throw error;
   }
   if (denied) return <p className="text-sm">{denied}</p>;
+
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight text-balance">Lesson studio</h1>
-        <p className="mt-2 max-w-[65ch] text-sm text-pretty">
-          Write an outline, then generate the lesson. Drafts stay private. Publishing does not change mastery or a coding score.
-        </p>
-      </header>
-      {lessonModelConfigured() ? null : (
-        <p className="max-w-[65ch] text-sm">
-          Outline generation needs OPENAI_API_KEY. Saved lessons on this page can still be opened. The rest of the portal works without it.
-        </p>
-      )}
-      <p>
-        <Link className="text-sm underline-offset-4 hover:underline" href="/studio/new">
-          New lesson
-        </Link>
-      </p>
-      {rows.length === 0 ? (
-        <p className="text-sm">No lessons yet.</p>
-      ) : (
-        <ul className="max-w-[65ch] divide-y divide-border text-sm">
-          {rows.map((lesson) => (
-            <li key={lesson.id} className="flex flex-wrap items-baseline justify-between gap-3 py-3">
-              <Link className="underline-offset-4 hover:underline" href={`/studio/${lesson.id}`}>
-                {lesson.title}
-              </Link>
-              <span>
-                {lesson.status === "published" ? "Published" : "Draft"} · {lesson.conceptName} · {lesson.updatedAt}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <StudioHub
+      lessons={rows}
+      modelConfigured={lessonModelConfigured()}
+    />
   );
 }
 

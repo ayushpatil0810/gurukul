@@ -144,7 +144,13 @@ export async function listLessons(actor: Actor) {
     .select({
       id: lessons.id,
       title: lessons.title,
+      topic: lessons.topic,
+      learnerLevel: lessons.learnerLevel,
+      durationMinutes: lessons.durationMinutes,
       status: lessons.status,
+      languageDirective: lessons.languageDirective,
+      outlineJson: lessons.outlineJson,
+      scenesJson: lessons.scenesJson,
       updatedAt: lessons.updatedAt,
       moduleName: modules.name,
       conceptName: concepts.name,
@@ -154,14 +160,26 @@ export async function listLessons(actor: Actor) {
     .innerJoin(concepts, eq(concepts.id, lessons.conceptId))
     .where(eq(lessons.instituteId, instituteId))
     .orderBy(desc(lessons.updatedAt));
-  return rows.map((row) => ({
-    id: row.id,
-    title: row.title,
-    status: formatStatus(row.status),
-    moduleName: row.moduleName,
-    conceptName: row.conceptName,
-    updatedAt: row.updatedAt.toISOString().slice(0, 16).replace("T", " ") + " UTC",
-  }));
+
+  return rows.map((row) => {
+    const outlines = Array.isArray(row.outlineJson) ? row.outlineJson : [];
+    const scenes = Array.isArray(row.scenesJson) ? row.scenesJson : [];
+    const language = parseLanguageDirective(row.languageDirective);
+    return {
+      id: row.id,
+      title: row.title,
+      topic: row.topic,
+      learnerLevel: row.learnerLevel,
+      durationMinutes: row.durationMinutes,
+      status: formatStatus(row.status),
+      moduleName: row.moduleName,
+      conceptName: row.conceptName,
+      codeLanguage: language.code || null,
+      scenesCount: scenes.length > 0 ? scenes.length : outlines.length,
+      hasScenes: scenes.length > 0,
+      updatedAt: row.updatedAt.toISOString().slice(0, 16).replace("T", " ") + " UTC",
+    };
+  });
 }
 
 function requireModel(aiCall: AICallFn) {

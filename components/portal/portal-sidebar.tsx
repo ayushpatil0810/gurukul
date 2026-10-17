@@ -113,9 +113,9 @@ export function PortalSidebar() {
           icon: LayoutDashboard,
         },
         {
-          name: "Concept Map",
+          name: isTrainerOrAdmin ? "Course Management" : "Course Curriculum",
           href: "/curriculum",
-          icon: Network,
+          icon: isTrainerOrAdmin ? BookOpenIcon : Network,
         },
       ],
     },
@@ -337,7 +337,7 @@ export function PortalSidebar() {
                   <DropdownMenuItem asChild>
                     <Link href="/curriculum">
                       <Network className="size-4" />
-                      <span>Concept Map</span>
+                      <span>Knowledge Graph & Courses</span>
                     </Link>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>

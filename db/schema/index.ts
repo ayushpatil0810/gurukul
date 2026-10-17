@@ -15,3 +15,4 @@ export * from "./auth";
 export * from "./portal";
 export * from "./lessons";
 export * from "./classroom";
+export * from "./courses";

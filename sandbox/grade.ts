@@ -1,6 +1,6 @@
 import type { RunResult } from "@/sandbox/types";
 
-function normalizeOutput(text: string): string {
+export function normalizeOutput(text: string): string {
   return text.replace(/\r\n/g, "\n").replace(/\s+$/u, "");
 }
 

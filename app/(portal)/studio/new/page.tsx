@@ -27,20 +27,28 @@ async function NewLesson() {
   if (!map) return null;
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-sm">
-          <Link className="underline-offset-4 hover:underline" href="/studio">
-            Lesson studio
+      <header className="border-b border-border/60 pb-5">
+        <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+          <Link href="/studio" className="hover:text-foreground transition-colors">
+            Lesson Studio
           </Link>
-        </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-balance">New lesson</h1>
-        <p className="mt-2 max-w-[65ch] text-sm text-pretty">
-          The first step writes an outline you can edit. Content is generated only after you approve that outline.
+          <span>/</span>
+          <span className="text-foreground font-medium">New Lesson</span>
+        </nav>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Author New Interactive Lesson
+        </h1>
+        <p className="mt-1 text-xs text-muted-foreground max-w-2xl">
+          Configure curriculum alignment, learning objectives, and calibration. The first step synthesizes a pedagogical outline you can review and refine.
         </p>
       </header>
-      {lessonModelConfigured() ? null : (
-        <p className="max-w-[65ch] text-sm">Set OPENAI_API_KEY before generating an outline. Nothing is saved if the model is not configured.</p>
-      )}
+
+      {!lessonModelConfigured() ? (
+        <div className="flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-800 dark:text-amber-300">
+          <span className="font-semibold">Notice:</span> OPENAI_API_KEY is not configured in this environment. Outlines and scenes will run in offline draft mode.
+        </div>
+      ) : null}
+
       <NewLessonForm modules={map.modules} concepts={map.concepts} />
     </div>
   );
