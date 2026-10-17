@@ -1,6 +1,6 @@
 import type { RunResult, SandboxRunner, SubmissionLanguage } from "@/sandbox/types";
 
-export const EXPLAIN_SOURCE = "line-scan-v1";
+const EXPLAIN_SOURCE = "line-scan-v1";
 
 const KEYWORDS = new Set([
   "function",
@@ -107,7 +107,7 @@ export async function generateExplainQuestions(input: {
   return { questions, note: null };
 }
 
-export function validateQuestions(questions: readonly ExplainDraft[]): ExplainDraft[] {
+function validateQuestions(questions: readonly ExplainDraft[]): ExplainDraft[] {
   return questions.filter(isValidQuestion).slice(0, 3);
 }
 

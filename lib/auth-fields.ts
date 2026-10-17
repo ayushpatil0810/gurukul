@@ -1,6 +1,6 @@
 import type { DBFieldAttribute } from "@better-auth/core/db";
 
-export const ROLES = ["student", "trainer", "admin"] as const;
+const ROLES = ["student", "trainer", "admin"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const portalUserFields = {
@@ -17,7 +17,7 @@ export const portalUserFields = {
   },
 } as const satisfies Record<string, DBFieldAttribute>;
 
-export function isRole(value: unknown): value is Role {
+function isRole(value: unknown): value is Role {
   return value === "student" || value === "trainer" || value === "admin";
 }
 

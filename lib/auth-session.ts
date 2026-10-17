@@ -27,7 +27,7 @@ export async function getServerSession(): Promise<Session | null> {
 /**
  * Convenience helper to get the currently authenticated user.
  */
-export async function getCurrentUser(): Promise<User | null> {
+async function getCurrentUser(): Promise<User | null> {
   const session = await getServerSession();
   return session?.user ?? null;
 }

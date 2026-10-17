@@ -27,7 +27,7 @@ function SmallIcon({ className, ...props }: IconProps) {
   );
 }
 
-export function HomeIcon({ className, ...props }: IconProps) {
+function HomeIcon({ className, ...props }: IconProps) {
   return (
     <Icon className={className} {...props}>
       <path

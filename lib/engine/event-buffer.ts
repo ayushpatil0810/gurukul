@@ -1,4 +1,4 @@
-export const EVENT_SCHEMA_VERSION = 2;
+const EVENT_SCHEMA_VERSION = 2;
 
 export type ClientEvent = {
   seq: number;

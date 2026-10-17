@@ -90,7 +90,7 @@ export class DockerSandboxRunner implements SandboxRunner {
   }
 }
 
-export function detectRuntime(): Promise<string | undefined> {
+function detectRuntime(): Promise<string | undefined> {
   runtimeDetection ??= docker(["info", "-f", "{{json .Runtimes}}"])
     .then((result) => (result.stdout.includes("runsc") ? "runsc" : undefined))
     .catch(() => undefined);

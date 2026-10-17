@@ -337,7 +337,7 @@ function toRow(attempt: AttemptContext, question: ExplainDraft) {
   };
 }
 
-export function verdictLabel(verdict: "yes" | "partial" | "no" | null): string | null {
+function verdictLabel(verdict: "yes" | "partial" | "no" | null): string | null {
   if (verdict === "yes") return "Correct";
   if (verdict === "partial") return "Partially correct";
   if (verdict === "no") return "Incorrect";

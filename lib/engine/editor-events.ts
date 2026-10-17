@@ -1,4 +1,4 @@
-export const EDITOR_SCHEMA_VERSION = 2;
+const EDITOR_SCHEMA_VERSION = 2;
 
 export const editorEventTypes = [
   "insert",
@@ -101,7 +101,7 @@ export function classifyModelChanges(input: {
   return edits;
 }
 
-export function isReconstructableEditorPayload(payload: unknown): payload is EditorEventPayload {
+function isReconstructableEditorPayload(payload: unknown): payload is EditorEventPayload {
   if (!payload || typeof payload !== "object") return false;
   const record = payload as Record<string, unknown>;
   if (record.schemaVersion !== EDITOR_SCHEMA_VERSION) return false;
@@ -119,7 +119,7 @@ export type Reconstruction =
   | { ok: false; reason: "legacy_or_incomplete" | "removed_mismatch" | "overlapping_changes" };
 
 /** One editor event, using the same checks as a full reconstruction. Non-editor events leave the text unchanged. */
-export function applyEditorEvent(text: string, event: { type: string; payload: unknown }): Reconstruction {
+function applyEditorEvent(text: string, event: { type: string; payload: unknown }): Reconstruction {
   if (!editorTypeSet.has(event.type)) return { ok: true, text };
   if (event.payload && typeof event.payload === "object" && (event.payload as { overlap?: unknown }).overlap === true) {
     return { ok: false, reason: "overlapping_changes" };

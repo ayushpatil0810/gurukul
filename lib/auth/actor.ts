@@ -17,7 +17,7 @@ export type Actor = {
  * Loads role and institute from the database for the signed-in user.
  * Request bodies are never a source for either value.
  */
-export async function actorFromUserId(userId: string): Promise<Actor | null> {
+async function actorFromUserId(userId: string): Promise<Actor | null> {
   const [row] = await db
     .select({
       id: user.id,

@@ -552,6 +552,6 @@ function scrubMetrics(metrics: Record<string, unknown>): Record<string, unknown>
   return next;
 }
 
-export function isSignalType(value: string): value is SignalType {
+function isSignalType(value: string): value is SignalType {
   return SIGNAL_TYPES.includes(value as SignalType);
 }

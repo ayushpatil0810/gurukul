@@ -32,7 +32,7 @@ const created = globalForDb.drizzleDb
   : createDb();
 
 export const db = created.db;
-export const pool = created.pool;
+const pool = created.pool;
 
 if (process.env.NODE_ENV !== "production") {
   globalForDb.drizzleDb = db;

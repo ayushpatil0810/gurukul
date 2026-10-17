@@ -3,7 +3,7 @@ import type { ConceptDashboardRow, AttemptDashboardRow, RecommendationView, Stud
 import { formatMastery } from "@/lib/engine/dashboard-bands";
 import type { ClassroomAnalyticsSummary } from "@/lib/services/classroom-analytics";
 
-export function StudentLearning({
+function StudentLearning({
   view,
   analytics,
 }: {
@@ -618,7 +618,7 @@ function hiddenText(attempt: AttemptDashboardRow): string {
   return formatMastery(attempt.passRate);
 }
 
-export function ClassroomAnalyticsCard({
+function ClassroomAnalyticsCard({
   analytics,
 }: {
   analytics?: ClassroomAnalyticsSummary | null;

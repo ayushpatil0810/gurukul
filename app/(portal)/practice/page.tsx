@@ -2,51 +2,74 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth-session";
 import { getActor } from "@/lib/auth/actor";
-import { getConsent, nextQuestion } from "@/lib/services/assessment";
-import { PracticeWorkspace } from "@/components/practice/workspace";
+import { getPracticeCatalog, getPracticeQuestionDetail } from "@/lib/services/practice";
+import { PracticeContainer } from "@/components/practice/practice-container";
 
 export const metadata: Metadata = {
-  title: "Practice",
+  title: "Practice Lab · Module Programming Challenges",
+  description:
+    "Interactive ungraded LeetCode-style programming laboratory. Solve coding challenges across your enrolled modules with instant sandbox evaluation.",
 };
 
-async function PracticeScreen() {
+async function PracticeScreen({
+  moduleId,
+  questionId,
+}: {
+  moduleId?: string;
+  questionId?: string;
+}) {
   await requireAuth();
   const actor = await getActor();
-  if (actor?.role !== "student") {
-    return <p className="text-sm text-muted-foreground">Practice is available to students.</p>;
+  if (!actor || actor.role !== "student") {
+    return (
+      <div className="rounded-xl border border-border p-6 text-sm text-muted-foreground">
+        The Practice Lab is designed for enrolled students. Instructors can author questions in the Question Bank and Lesson Studio.
+      </div>
+    );
   }
-  const [learning, consent] = await Promise.all([nextQuestion(actor), getConsent(actor)]);
+
+  const catalog = await getPracticeCatalog(actor, moduleId);
+
+  let initialQuestion = null;
+  if (questionId) {
+    try {
+      initialQuestion = await getPracticeQuestionDetail(actor, questionId);
+    } catch {
+      initialQuestion = null;
+    }
+  }
+
   return (
-    <PracticeWorkspace
-      initial={learning}
-      consentText={consent.consentText}
-      consentAccepted={consent.accepted}
+    <PracticeContainer
+      initialCatalog={catalog}
+      initialQuestion={initialQuestion}
     />
   );
 }
 
-export default function PracticePage() {
+export default async function PracticePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ q?: string; questionId?: string; module?: string; moduleId?: string }>;
+}) {
+  const query = await searchParams;
+  const preferredModuleId = query?.module ?? query?.moduleId;
+  const preferredQuestionId = query?.q ?? query?.questionId;
+
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Practice Lab</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ungraded interactive coding laboratory. Run samples, experiment with code, and prepare for assessments.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-muted-foreground">Ready for the official test?</span>
-          <a
-            href="/assessment"
-            className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
-          >
-            Go to Online Assessment (OA) &rarr;
-          </a>
-        </div>
-      </div>
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading practice…</p>}>
-        <PracticeScreen />
+    <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4">
+      <Suspense
+        fallback={
+          <div className="space-y-4 animate-pulse">
+            <div className="h-28 rounded-2xl bg-muted/60" />
+            <div className="h-80 rounded-xl bg-muted/40" />
+          </div>
+        }
+      >
+        <PracticeScreen
+          moduleId={preferredModuleId}
+          questionId={preferredQuestionId}
+        />
       </Suspense>
     </div>
   );

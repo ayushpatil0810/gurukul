@@ -1,6 +1,6 @@
 import type { RunLimits, SubmissionLanguage } from "@/sandbox/types";
 
-export const LANGUAGE_IMAGES: Record<SubmissionLanguage, string> = {
+const LANGUAGE_IMAGES: Record<SubmissionLanguage, string> = {
   javascript: "node:22-bookworm-slim",
   cpp: "gcc:14-bookworm",
   java: "eclipse-temurin:21-jdk-jammy",

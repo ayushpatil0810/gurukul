@@ -1,4 +1,4 @@
-export const lessonCodeLanguages = ["typescript", "javascript", "java", "cpp"] as const;
+const lessonCodeLanguages = ["typescript", "javascript", "java", "cpp"] as const;
 
 export type LessonCodeLanguage = (typeof lessonCodeLanguages)[number];
 
