@@ -43,6 +43,13 @@
       "when": 1792179199282,
       "tag": "0005_luxuriant_lady_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792225864436,
+      "tag": "0006_complex_ultimo",
+      "breakpoints": true
     }
   ]
 }
