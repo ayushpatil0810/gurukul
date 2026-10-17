@@ -27,12 +27,18 @@ async function PracticeScreen() {
 
 export default function PracticePage() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <h1 className="text-3xl font-bold tracking-tight">Practice</h1>
-      <p className="mt-1 mb-6 text-sm text-muted-foreground">
-        Run checks the samples. Submit checks the hidden tests and can update mastery.
-      </p>
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading practice…</p>}>
+    <div className="px-4 md:px-6 py-6 pb-16 space-y-6">
+      <header className="border-b border-border/60 pb-6">
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-muted-foreground mb-2">
+          <span className="size-1.5 rounded-full bg-primary" />
+          Interactive Assessment Lab
+        </div>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Coding Practice & Evaluation</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Run tests sample assertions inside isolated Docker containers. Submit executes hidden test verification to update BKT mastery.
+        </p>
+      </header>
+      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading practice workspace…</p>}>
         <PracticeScreen />
       </Suspense>
     </div>

@@ -6,7 +6,6 @@ import { AppError } from "@/lib/errors";
 import { readStudentDashboard, readTrainerDashboard } from "@/lib/services/dashboard";
 import { getClassroomAnalytics, type ClassroomAnalyticsSummary } from "@/lib/services/classroom-analytics";
 import { StudentLearning, TrainerLearning } from "@/components/dashboard/views";
-import { PortalDashboardView } from "@/components/portal/dashboard-view";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -40,25 +39,19 @@ async function DashboardScreen({
   }
 
   return (
-    <div className="space-y-8">
-      {/* New Template Executive Dashboard View */}
-      <PortalDashboardView userName={actor.name} role={actor.role} />
-
-      {/* Role-Specific Learning & Mastery Records */}
-      <div className="px-4 md:px-6 pb-12">
-        {denied ? (
-          <p className="text-sm text-destructive">{denied}</p>
-        ) : student ? (
-          <StudentLearning view={student} analytics={analytics} />
-        ) : trainer ? (
-          <TrainerLearning
-            batchId={query.batch}
-            moduleId={query.module}
-            view={trainer}
-            analytics={analytics}
-          />
-        ) : null}
-      </div>
+    <div className="px-4 md:px-6 py-6 pb-16">
+      {denied ? (
+        <p className="text-sm text-destructive">{denied}</p>
+      ) : student ? (
+        <StudentLearning view={student} analytics={analytics} />
+      ) : trainer ? (
+        <TrainerLearning
+          batchId={query.batch}
+          moduleId={query.module}
+          view={trainer}
+          analytics={analytics}
+        />
+      ) : null}
     </div>
   );
 }

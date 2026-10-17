@@ -115,10 +115,10 @@ export function ConceptMapView({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="h-[560px] overflow-hidden rounded-xl border border-border bg-card">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="h-[580px] overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs">
         {map.concepts.length === 0 ? (
-          <p className="p-6 text-sm text-muted-foreground">No concepts yet.</p>
+          <p className="p-6 text-sm text-muted-foreground">No concepts defined in this institute yet.</p>
         ) : (
           <ReactFlow nodes={nodes} edges={edges} fitView nodesDraggable={false} nodesConnectable={false}>
             <Background />
@@ -128,19 +128,19 @@ export function ConceptMapView({
       </div>
 
       <div className="space-y-6">
-        <section>
-          <h2 className="text-sm font-semibold">Modules</h2>
+        <section className="rounded-xl border border-border/70 bg-card p-5 shadow-xs">
+          <h2 className="text-sm font-semibold text-foreground">Curriculum Modules</h2>
           {map.modules.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">No modules yet.</p>
+            <p className="mt-2 text-xs text-muted-foreground">No modules published yet.</p>
           ) : (
-            <ul className="mt-2 space-y-2 text-sm">
+            <ul className="mt-3 space-y-2 text-xs">
               {map.modules.map((module) => {
                 const goal = map.concepts.find((concept) => concept.id === module.goalConceptId);
                 return (
-                  <li key={module.id} className="rounded-lg border border-border p-3">
-                    <p className="font-medium">{module.name}</p>
-                    <p className="text-muted-foreground">
-                      Goal: {goal?.name ?? "Unknown"} · threshold {module.masteryThreshold}
+                  <li key={module.id} className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                    <p className="font-semibold text-foreground">{module.name}</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      Goal: <span className="font-medium text-foreground">{goal?.name ?? "Unknown"}</span> · Threshold {module.masteryThreshold.toFixed(2)}
                     </p>
                   </li>
                 );
@@ -151,32 +151,33 @@ export function ConceptMapView({
 
         {canEdit ? (
           <>
-            <form onSubmit={createConcept} className="space-y-3">
-              <h2 className="text-sm font-semibold">Add concept</h2>
+            <form onSubmit={createConcept} className="rounded-xl border border-border/70 bg-card p-5 shadow-xs space-y-3">
+              <h2 className="text-sm font-semibold text-foreground">Add Concept</h2>
               <div className="space-y-1.5">
-                <Label htmlFor="concept-name">Name</Label>
-                <Input id="concept-name" value={name} onChange={(event) => setName(event.target.value)} required />
+                <Label htmlFor="concept-name" className="text-xs">Concept Name</Label>
+                <Input id="concept-name" placeholder="e.g. Docker Volumes" value={name} onChange={(event) => setName(event.target.value)} required />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="concept-description">Description</Label>
+                <Label htmlFor="concept-description" className="text-xs">Description</Label>
                 <Input
                   id="concept-description"
+                  placeholder="Summary of concept requirements"
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                 />
               </div>
-              <Button type="submit" disabled={pending}>
-                Create concept
+              <Button type="submit" size="sm" disabled={pending} className="w-full">
+                Create Concept
               </Button>
             </form>
 
-            <form onSubmit={createEdge} className="space-y-3">
-              <h2 className="text-sm font-semibold">Add prerequisite</h2>
+            <form onSubmit={createEdge} className="rounded-xl border border-border/70 bg-card p-5 shadow-xs space-y-3">
+              <h2 className="text-sm font-semibold text-foreground">Add Prerequisite Edge</h2>
               <div className="space-y-1.5">
-                <Label htmlFor="concept-id">Concept</Label>
+                <Label htmlFor="concept-id" className="text-xs">Target Concept</Label>
                 <select
                   id="concept-id"
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
                   value={conceptId}
                   onChange={(event) => setConceptId(event.target.value)}
                 >
@@ -188,10 +189,10 @@ export function ConceptMapView({
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="requires-id">Requires</Label>
+                <Label htmlFor="requires-id" className="text-xs">Requires Prerequisite</Label>
                 <select
                   id="requires-id"
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
                   value={requiresId}
                   onChange={(event) => setRequiresId(event.target.value)}
                 >
@@ -202,15 +203,15 @@ export function ConceptMapView({
                   ))}
                 </select>
               </div>
-              <Button type="submit" variant="outline" disabled={pending || map.concepts.length < 2}>
-                Add edge
+              <Button type="submit" variant="secondary" size="sm" disabled={pending || map.concepts.length < 2} className="w-full">
+                Connect Prerequisite
               </Button>
             </form>
           </>
         ) : null}
 
         {error ? (
-          <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
             {error}
           </p>
         ) : null}

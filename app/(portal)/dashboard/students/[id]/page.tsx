@@ -46,7 +46,7 @@ export default function StudentDashboardPage({
   searchParams: Promise<{ module?: string }>;
 }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <div className="px-4 md:px-6 py-6 pb-16">
       <Suspense fallback={<p className="text-sm">Loading this student…</p>}>
         <DetailScreen params={params} searchParams={searchParams} />
       </Suspense>
